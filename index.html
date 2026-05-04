@@ -1062,12 +1062,16 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = ''
   })
 
-  requestAnimationFrame(() => requestAnimationFrame(renderHome))
-
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {})
   }
 })
+
+window.addEventListener('pageshow', () => {
+  if (document.getElementById('page-home').classList.contains('active')) renderHome()
+})
+
+window.addEventListener('load', renderHome)
 </script>
 </body>
 </html>

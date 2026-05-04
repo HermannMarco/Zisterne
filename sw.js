@@ -1,4 +1,4 @@
-const CACHE = 'zisterne-v2'
+const CACHE = 'zisterne-v3'
 const ASSETS = ['./index.html', './manifest.json', './icon.svg']
 
 self.addEventListener('install', e => {
