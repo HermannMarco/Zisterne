@@ -367,6 +367,11 @@
           <div><div class="settings-label">Dach Haus</div><div class="settings-unit">m²</div></div>
           <input type="number" class="settings-input" id="set-dach-h" min="0" max="10000">
         </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Postleitzahl</div><div class="settings-unit">für automatischen Niederschlag</div></div>
+          <input type="text" class="settings-input" id="set-plz" maxlength="5" placeholder="12345" inputmode="numeric">
+        </div>
+        <div id="plz-status" style="font-size:13px;padding:4px 4px 0;min-height:18px"></div>
       </div>
 
       <!-- Gießen -->
@@ -454,6 +459,7 @@
     <div class="form-group">
       <label>Niederschlag (l/m²)</label>
       <input type="number" id="entry-regen" placeholder="0" min="0" step="0.5">
+      <div id="weather-status" style="font-size:12px;color:var(--muted);margin-top:4px;min-height:16px"></div>
       <div class="calc-preview" id="preview-regen"></div>
     </div>
     <div class="form-group">
@@ -484,7 +490,11 @@ const DEFAULTS = {
     preise: [
       { ab: 2024, preis: 2.92 },
       { ab: 2025, preis: 3.38 }
-    ]
+    ],
+    plz:     '',
+    lat:     null,
+    lon:     null,
+    plzName: ''
   },
   eintraege: []
 }
@@ -516,6 +526,10 @@ function load() {
     if (!d.settings.preise) {
       d.settings.preise = [{ ab: new Date().getFullYear(), preis: d.settings.wasserpreis || 3.38 }]
     }
+    d.settings.plz     = d.settings.plz     ?? ''
+    d.settings.lat     = d.settings.lat     ?? null
+    d.settings.lon     = d.settings.lon     ?? null
+    d.settings.plzName = d.settings.plzName ?? ''
     return d
   } catch { return cloneDefaults() }
 }
@@ -739,8 +753,11 @@ function renderSettings() {
   document.getElementById('set-dach-t').value = s.dachTerrasse
   document.getElementById('set-dach-h').value = s.dachHaus
   document.getElementById('set-lpm').value    = s.literProMinute
+  document.getElementById('set-plz').value    = s.plz || ''
+  const statusEl = document.getElementById('plz-status')
+  statusEl.style.color = 'var(--green)'
+  statusEl.textContent = s.plzName ? `✓ ${s.plzName}` : ''
   renderPreise()
-
 }
 
 function renderPreise() {
@@ -833,7 +850,9 @@ function openModal(id) {
     document.getElementById('entry-entnahme').value = ''
   }
   updateEntryPreview()
+  document.getElementById('weather-status').textContent = ''
   document.getElementById('modal-entry').classList.add('open')
+  if (!id) autofillPrecipitation()
 }
 
 function closeModal() { document.getElementById('modal-entry').classList.remove('open') }
@@ -872,14 +891,98 @@ function deleteEntry(id) {
 // ═══════════════════════════════════════════
 // SETTINGS SAVE
 // ═══════════════════════════════════════════
-function saveSettings() {
+async function saveSettings() {
   db.settings.kapazitaet      = parseFloat(document.getElementById('set-kap').value)    || 5000
   db.settings.anfangsbestand  = parseFloat(document.getElementById('set-anfang').value) || 0
   db.settings.dachTerrasse    = parseFloat(document.getElementById('set-dach-t').value) || 0
   db.settings.dachHaus        = parseFloat(document.getElementById('set-dach-h').value) || 0
   db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
   // preise are updated inline via updatePreis()
+
+  const newPLZ   = (document.getElementById('set-plz').value || '').trim()
+  const statusEl = document.getElementById('plz-status')
+  if (newPLZ && newPLZ !== db.settings.plz) {
+    statusEl.style.color = 'var(--muted)'
+    statusEl.textContent = '⟳ PLZ wird gesucht…'
+    try {
+      const geo = await geocodePLZ(newPLZ)
+      db.settings.plz     = newPLZ
+      db.settings.lat     = geo.lat
+      db.settings.lon     = geo.lon
+      db.settings.plzName = geo.name
+      statusEl.style.color = 'var(--green)'
+      statusEl.textContent = `✓ ${geo.name}`
+    } catch {
+      statusEl.style.color = 'var(--danger)'
+      statusEl.textContent = '✗ PLZ nicht gefunden'
+    }
+  } else if (!newPLZ) {
+    db.settings.plz = ''; db.settings.lat = null
+    db.settings.lon = null; db.settings.plzName = ''
+    statusEl.textContent = ''
+  }
+
   save(); renderHome(); toast('Einstellungen gespeichert')
+}
+
+// ═══════════════════════════════════════════
+// WETTER (Open-Meteo + Nominatim)
+// ═══════════════════════════════════════════
+async function geocodePLZ(plz) {
+  const url = `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(plz)}&country=de&format=json&limit=1`
+  const r = await fetch(url, { headers: { 'Accept-Language': 'de-DE' } })
+  const data = await r.json()
+  if (!data.length) throw new Error('PLZ nicht gefunden')
+  const name = data[0].display_name.split(',').slice(0, 2).join(', ').trim()
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name }
+}
+
+async function fetchPrecipitation(lat, lon, date) {
+  const msAgo = Date.now() - new Date(date + 'T00:00:00').getTime()
+  const daysAgo = Math.floor(msAgo / 864e5)
+
+  let url
+  if (daysAgo <= 90) {
+    // Forecast API deckt heute + bis zu 92 Tage zurück ab
+    url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+          `&daily=precipitation_sum&timezone=Europe%2FBerlin&past_days=${Math.min(daysAgo + 1, 92)}&forecast_days=1`
+  } else {
+    // Archive API für ältere Daten
+    url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+          `&start_date=${date}&end_date=${date}&daily=precipitation_sum&timezone=Europe%2FBerlin`
+  }
+
+  const r = await fetch(url)
+  const data = await r.json()
+  const idx = (data.daily?.time || []).indexOf(date)
+  if (idx === -1) return null
+  return data.daily.precipitation_sum[idx]
+}
+
+async function autofillPrecipitation() {
+  if (!db.settings.lat || !db.settings.lon) return
+  const date      = document.getElementById('entry-datum').value
+  const statusEl  = document.getElementById('weather-status')
+  if (!date) return
+
+  statusEl.style.color = 'var(--muted)'
+  statusEl.textContent = '⟳ Wetterdaten werden geladen…'
+
+  try {
+    const mm = await fetchPrecipitation(db.settings.lat, db.settings.lon, date)
+    if (mm !== null && mm !== undefined) {
+      document.getElementById('entry-regen').value = Math.round(mm * 10) / 10
+      updateEntryPreview()
+      statusEl.style.color = 'var(--accent)'
+      statusEl.textContent = `☁ ${mm} mm/m² (Open-Meteo) — anpassbar`
+    } else {
+      statusEl.style.color = 'var(--muted)'
+      statusEl.textContent = 'Keine Wetterdaten für dieses Datum verfügbar'
+    }
+  } catch {
+    statusEl.style.color = 'var(--muted)'
+    statusEl.textContent = 'Wetterdaten offline nicht verfügbar'
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -985,6 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   document.getElementById('entry-regen').addEventListener('input', updateEntryPreview)
+  document.getElementById('entry-datum').addEventListener('change', autofillPrecipitation)
   document.getElementById('entry-entnahme').addEventListener('input', updateEntryPreview)
 
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings)
