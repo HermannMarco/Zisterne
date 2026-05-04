@@ -156,30 +156,6 @@
     }
     .settings-input:focus { border-color: var(--accent); }
 
-    /* Zufluss preview table */
-    .zufluss-table {
-      width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px;
-    }
-    .zufluss-table th {
-      text-align: right; padding: 6px 8px; color: var(--muted);
-      font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
-    }
-    .zufluss-table th:first-child { text-align: left; }
-    .zufluss-table td { padding: 7px 8px; text-align: right; border-top: 1px solid var(--bd2); }
-    .zufluss-table td:first-child { text-align: left; }
-    .zufluss-table tr.total td {
-      font-weight: 700; color: var(--accent);
-      border-top: 2px solid var(--bd);
-    }
-    .zufluss-preview-header {
-      display: flex; align-items: center; gap: 8px; margin-top: 14px;
-      font-size: 13px; color: var(--muted);
-    }
-    .zufluss-preview-header input {
-      width: 70px; padding: 6px 10px; font-size: 14px;
-      border: 1px solid var(--bd); border-radius: 8px;
-      background: var(--bg); color: var(--text); -webkit-appearance: none;
-    }
 
     /* Price list */
     .preis-row {
@@ -391,18 +367,6 @@
           <div><div class="settings-label">Dach Haus</div><div class="settings-unit">m²</div></div>
           <input type="number" class="settings-input" id="set-dach-h" min="0" max="10000">
         </div>
-        <!-- Zufluss preview -->
-        <div class="zufluss-preview-header">
-          Vorschau bei
-          <input type="number" id="preview-lqm" value="5" min="0" max="100" step="0.5">
-          l/m²
-        </div>
-        <table class="zufluss-table" id="zufluss-table">
-          <thead>
-            <tr><th>Fläche</th><th>m²</th><th>l/m²</th><th>Liter</th></tr>
-          </thead>
-          <tbody id="zufluss-body"></tbody>
-        </table>
       </div>
 
       <!-- Gießen -->
@@ -776,7 +740,7 @@ function renderSettings() {
   document.getElementById('set-dach-h').value = s.dachHaus
   document.getElementById('set-lpm').value    = s.literProMinute
   renderPreise()
-  renderZufluss()
+
 }
 
 function renderPreise() {
@@ -814,24 +778,6 @@ function addPreis() {
   renderPreise()
 }
 
-function renderZufluss() {
-  const lqm = parseFloat(document.getElementById('preview-lqm').value) || 0
-  const dt  = parseFloat(document.getElementById('set-dach-t').value)  || db.settings.dachTerrasse
-  const dh  = parseFloat(document.getElementById('set-dach-h').value)  || db.settings.dachHaus
-  const body = document.getElementById('zufluss-body')
-  const ltT  = Math.round(dt * lqm)
-  const ltH  = Math.round(dh * lqm)
-  body.innerHTML = `
-    <tr>
-      <td>Dach Terrasse</td><td>${dt}</td><td>${lqm}</td><td>${ltT.toLocaleString('de-DE')} L</td>
-    </tr>
-    <tr>
-      <td>Dach Haus</td><td>${dh}</td><td>${lqm}</td><td>${ltH.toLocaleString('de-DE')} L</td>
-    </tr>
-    <tr class="total">
-      <td>Gesamt</td><td>${dt + dh}</td><td></td><td>${(ltT + ltH).toLocaleString('de-DE')} L</td>
-    </tr>`
-}
 
 // ═══════════════════════════════════════════
 // NAVIGATION
@@ -933,7 +879,7 @@ function saveSettings() {
   db.settings.dachHaus        = parseFloat(document.getElementById('set-dach-h').value) || 0
   db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
   // preise are updated inline via updatePreis()
-  save(); renderHome(); renderZufluss(); toast('Einstellungen gespeichert')
+  save(); renderHome(); toast('Einstellungen gespeichert')
 }
 
 // ═══════════════════════════════════════════
@@ -1044,11 +990,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings)
   document.getElementById('btn-add-preis').addEventListener('click', addPreis)
 
-  // Live zufluss preview
-  ['preview-lqm','set-dach-t','set-dach-h'].forEach(id => {
-    const el = document.getElementById(id)
-    if (el) el.addEventListener('input', renderZufluss)
-  })
 
   document.getElementById('btn-delete-all').addEventListener('click', () => {
     if (!confirm('Wirklich ALLE Daten löschen?\nDies kann nicht rückgängig gemacht werden.')) return
