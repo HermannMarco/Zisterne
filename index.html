@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Zisterne">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Gartenzisterne</title>
+  <style>
+    :root {
+      --bg:      #f0f9ff;
+      --surface: #ffffff;
+      --bd:      #bae6fd;
+      --bd2:     #e0f2fe;
+      --accent:  #0284c7;
+      --acc2:    #0369a1;
+      --text:    #0c2844;
+      --muted:   #5b82a0;
+      --green:   #15803d;
+      --gbg:     #f0fdf4;
+      --amber:   #b45309;
+      --abg:     #fffbeb;
+      --danger:  #b91c1c;
+      --dbg:     #fef2f2;
+      --nav-h:   68px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      background: var(--bg); color: var(--text); font-size: 16px;
+    }
+
+    #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--bd);
+      padding: 12px 20px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0px));
+      display: flex; align-items: center; justify-content: space-between; z-index: 10; flex-shrink: 0;
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; color: var(--accent); }
+    .subtitle  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    #main-content {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 8px);
+    }
+
+    .page { display: none; padding: 14px 16px; }
+    .page.active { display: block; }
+
+    nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      background: var(--surface); border-top: 1px solid var(--bd);
+      display: flex; z-index: 10;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; background: none; border: none; color: var(--muted);
+      font-size: 11px; gap: 4px; cursor: pointer; transition: color 0.15s;
+    }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn svg { width: 22px; height: 22px; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--bd);
+      border-radius: 16px; padding: 16px; margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+    }
+
+    /* Cistern */
+    .cistern-wrap { display: flex; justify-content: center; padding: 4px 0 12px; }
+    #cistern-svg { width: 165px; height: auto; }
+
+    /* Stats table */
+    .stats-table { width: 100%; border-collapse: collapse; }
+    .stats-table tr { border-bottom: 1px solid var(--bd2); }
+    .stats-table tr:last-child { border-bottom: none; }
+    .stats-table td { padding: 11px 4px; }
+    .stats-table td:first-child { color: var(--muted); font-size: 14px; }
+    .stats-table td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .c-green { color: var(--green); }
+    .c-blue  { color: var(--accent); }
+    .c-amber { color: var(--amber); }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+    input[type="text"], input[type="number"], input[type="date"] {
+      width: 100%; background: var(--bg); border: 1px solid var(--bd);
+      border-radius: 10px; padding: 12px 14px; color: var(--text);
+      font-size: 16px; -webkit-appearance: none; outline: none;
+    }
+    input:focus { border-color: var(--accent); }
+    input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
+
+    .calc-preview {
+      font-size: 13px; color: var(--accent); font-weight: 600;
+      margin-top: 5px; margin-left: 2px; min-height: 18px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: block; width: 100%; padding: 14px; border-radius: 12px;
+      border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary   { background: var(--accent); color: white; }
+    .btn-secondary { background: var(--bd2); color: var(--text); }
+    .btn-danger    { background: var(--dbg); color: var(--danger); border: 1px solid #fecaca; }
+    .btn-sm { display: inline-block; width: auto; padding: 9px 18px; font-size: 14px; border-radius: 10px; }
+
+    /* Entries */
+    .entry-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 0; border-bottom: 1px solid var(--bd2);
+    }
+    .entry-item:last-child { border-bottom: none; }
+    .entry-date { font-size: 13px; color: var(--muted); }
+    .entry-kw   { font-size: 11px; color: var(--muted); opacity: 0.7; margin-top: 2px; }
+    .entry-values { display: flex; flex-direction: column; gap: 2px; text-align: right; flex: 1; padding: 0 8px; }
+    .entry-values span { font-size: 13px; font-weight: 600; }
+    .val-in  { color: var(--green); }
+    .val-out { color: var(--danger); }
+    .entry-del {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      padding: 6px; font-size: 20px; line-height: 1; opacity: 0.5;
+    }
+    .entries-toolbar {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
+    .entries-count { font-size: 14px; color: var(--muted); }
+
+    /* Settings rows */
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--bd2);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-label { font-size: 15px; }
+    .settings-unit  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .settings-input {
+      width: 110px; text-align: right; background: var(--bg); border: 1px solid var(--bd);
+      border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 15px;
+      -webkit-appearance: none; outline: none;
+    }
+    .settings-input:focus { border-color: var(--accent); }
+
+    /* Zufluss preview table */
+    .zufluss-table {
+      width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px;
+    }
+    .zufluss-table th {
+      text-align: right; padding: 6px 8px; color: var(--muted);
+      font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .zufluss-table th:first-child { text-align: left; }
+    .zufluss-table td { padding: 7px 8px; text-align: right; border-top: 1px solid var(--bd2); }
+    .zufluss-table td:first-child { text-align: left; }
+    .zufluss-table tr.total td {
+      font-weight: 700; color: var(--accent);
+      border-top: 2px solid var(--bd);
+    }
+    .zufluss-preview-header {
+      display: flex; align-items: center; gap: 8px; margin-top: 14px;
+      font-size: 13px; color: var(--muted);
+    }
+    .zufluss-preview-header input {
+      width: 70px; padding: 6px 10px; font-size: 14px;
+      border: 1px solid var(--bd); border-radius: 8px;
+      background: var(--bg); color: var(--text); -webkit-appearance: none;
+    }
+
+    /* Price list */
+    .preis-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid var(--bd2);
+    }
+    .preis-row:last-child { border-bottom: none; }
+    .preis-row input {
+      background: var(--bg); border: 1px solid var(--bd); border-radius: 8px;
+      padding: 8px 10px; color: var(--text); font-size: 14px;
+      -webkit-appearance: none;
+    }
+    .preis-row .inp-year { width: 72px; }
+    .preis-row .inp-preis { width: 90px; text-align: right; }
+    .preis-row label { margin: 0; font-size: 13px; white-space: nowrap; }
+    .preis-del {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 18px; padding: 4px; opacity: 0.6; margin-left: auto;
+    }
+    .btn-add-preis {
+      display: flex; align-items: center; gap: 6px; background: none;
+      border: 1px dashed var(--bd); border-radius: 8px;
+      padding: 9px 14px; font-size: 14px; color: var(--accent);
+      cursor: pointer; width: 100%; margin-top: 10px; justify-content: center;
+    }
+
+    /* Import */
+    .import-area {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; padding: 28px 20px; border: 2px dashed var(--bd); border-radius: 12px;
+      cursor: pointer; color: var(--muted); font-size: 15px; text-align: center;
+    }
+    .import-area:hover { border-color: var(--accent); color: var(--text); }
+    #import-status { margin-top: 10px; font-size: 13px; color: var(--muted); text-align: center; min-height: 18px; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 100px; font-size: 12px; font-weight: 600; }
+    .badge-blue   { background: #e0f2fe; color: var(--accent); }
+    .badge-green  { background: var(--gbg); color: var(--green); }
+    .badge-amber  { background: var(--abg); color: var(--amber); }
+    .badge-red    { background: var(--dbg); color: var(--danger); }
+
+    /* Empty */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .empty-state p { margin-top: 10px; font-size: 14px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(12,40,68,0.45);
+      z-index: 50; display: none; align-items: flex-end;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-sheet {
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      width: 100%; border-top: 1px solid var(--bd);
+    }
+    .modal-handle {
+      width: 36px; height: 4px; background: var(--bd);
+      border-radius: 2px; margin: 0 auto 16px;
+    }
+    .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 14px);
+      left: 50%; transform: translateX(-50%) translateY(10px);
+      background: var(--acc2); color: white; border-radius: 100px;
+      padding: 10px 20px; font-size: 14px; white-space: nowrap; z-index: 100;
+      opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* Section divider in settings */
+    .section-note {
+      font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <h1>Gartenzisterne</h1>
+      <div class="subtitle" id="header-sub">Wird geladen…</div>
+    </div>
+    <div id="header-badge"></div>
+  </header>
+
+  <div id="main-content">
+
+    <!-- ═══════════════ ÜBERSICHT ═══════════════ -->
+    <div class="page active" id="page-home">
+      <div class="cistern-wrap">
+        <svg id="cistern-svg" viewBox="0 0 200 310" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#0369a1"/>
+            </linearGradient>
+            <linearGradient id="tg" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#e0f2fe"/>
+              <stop offset="100%" stop-color="#dbeafe"/>
+            </linearGradient>
+            <clipPath id="tank-clip">
+              <rect x="16" y="28" width="168" height="268" rx="12"/>
+            </clipPath>
+          </defs>
+          <!-- Tank -->
+          <rect x="16" y="28" width="168" height="268" rx="12" fill="url(#tg)" stroke="#93c5fd" stroke-width="2.5"/>
+          <!-- Water -->
+          <g clip-path="url(#tank-clip)">
+            <rect id="water-body" x="16" y="200" width="168" height="100" fill="url(#wg)"/>
+            <path id="wave-path" d="M-90,200 Q10,190 100,200 Q190,210 290,200 L290,300 L-90,300 Z" fill="url(#wg)">
+              <animateTransform attributeName="transform" type="translate" values="-90,0;90,0;-90,0" dur="5s" repeatCount="indefinite"/>
+            </path>
+          </g>
+          <!-- Level markers -->
+          <line x1="16" y1="96"  x2="30" y2="96"  stroke="#93c5fd" stroke-width="1.5"/>
+          <text x="34" y="100" fill="#7db4d8" font-size="10" font-family="-apple-system,sans-serif">75%</text>
+          <line x1="16" y1="162" x2="30" y2="162" stroke="#93c5fd" stroke-width="1.5"/>
+          <text x="34" y="166" fill="#7db4d8" font-size="10" font-family="-apple-system,sans-serif">50%</text>
+          <line x1="16" y1="228" x2="30" y2="228" stroke="#93c5fd" stroke-width="1.5"/>
+          <text x="34" y="232" fill="#7db4d8" font-size="10" font-family="-apple-system,sans-serif">25%</text>
+          <!-- Tank border on top -->
+          <rect x="16" y="28" width="168" height="268" rx="12" fill="none" stroke="#60a5fa" stroke-width="2"/>
+          <!-- Cap -->
+          <rect x="72" y="18" width="56" height="16" rx="5" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/>
+          <rect x="84" y="10" width="32" height="12" rx="3" fill="#e0f2fe" stroke="#93c5fd" stroke-width="1.5"/>
+          <!-- Text -->
+          <text id="pct-text" x="100" y="153" text-anchor="middle"
+            font-size="50" font-weight="700" fill="white"
+            font-family="-apple-system,sans-serif"
+            style="filter:drop-shadow(0 2px 6px rgba(3,105,161,0.7))">–</text>
+          <text id="liter-text" x="100" y="176" text-anchor="middle"
+            font-size="14" fill="white"
+            font-family="-apple-system,sans-serif"
+            style="filter:drop-shadow(0 1px 3px rgba(3,105,161,0.6))">– Liter</text>
+        </svg>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Übersicht</div>
+        <table class="stats-table">
+          <tr>
+            <td>Gießen möglich</td>
+            <td class="c-blue" id="stat-giess">–</td>
+          </tr>
+          <tr>
+            <td>Letzter Regen</td>
+            <td id="stat-regen">–</td>
+          </tr>
+          <tr>
+            <td>Regen KW <span id="lbl-kw-r"></span></td>
+            <td class="c-blue" id="stat-regen-kw">–</td>
+          </tr>
+          <tr>
+            <td>Entnahme KW <span id="lbl-kw"></span></td>
+            <td id="stat-entnahme-kw">–</td>
+          </tr>
+          <tr>
+            <td>Geld gespart <span id="lbl-year1"></span></td>
+            <td class="c-green" id="stat-geld">–</td>
+          </tr>
+          <tr>
+            <td>Geld gespart Gesamt</td>
+            <td class="c-green" id="stat-geld-gesamt">–</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════ EINTRÄGE ═══════════════ -->
+    <div class="page" id="page-entries">
+      <div class="entries-toolbar">
+        <span class="entries-count" id="entries-count">0 Einträge</span>
+        <button class="btn btn-primary btn-sm" id="btn-add">+ Eintrag</button>
+      </div>
+      <div class="card">
+        <div id="entries-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ EINSTELLUNGEN ═══════════════ -->
+    <div class="page" id="page-settings">
+
+      <!-- Zisterne -->
+      <div class="card">
+        <div class="card-title">Zisterne</div>
+        <div class="settings-row">
+          <div><div class="settings-label">Kapazität</div><div class="settings-unit">Liter gesamt</div></div>
+          <input type="number" class="settings-input" id="set-kap" min="100" max="500000">
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Anfangsbestand</div><div class="settings-unit">Liter vor dem 1. Eintrag</div></div>
+          <input type="number" class="settings-input" id="set-anfang" min="0" max="500000">
+        </div>
+      </div>
+
+      <!-- Dachentwässerung -->
+      <div class="card">
+        <div class="card-title">Dachentwässerung</div>
+        <p class="section-note">Der Niederschlag in l/m² wird mit der Gesamtfläche multipliziert, um den Zufluss zur Zisterne zu berechnen.</p>
+        <div class="settings-row">
+          <div><div class="settings-label">Dach Terrasse</div><div class="settings-unit">m²</div></div>
+          <input type="number" class="settings-input" id="set-dach-t" min="0" max="10000">
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Dach Haus</div><div class="settings-unit">m²</div></div>
+          <input type="number" class="settings-input" id="set-dach-h" min="0" max="10000">
+        </div>
+        <!-- Zufluss preview -->
+        <div class="zufluss-preview-header">
+          Vorschau bei
+          <input type="number" id="preview-lqm" value="5" min="0" max="100" step="0.5">
+          l/m²
+        </div>
+        <table class="zufluss-table" id="zufluss-table">
+          <thead>
+            <tr><th>Fläche</th><th>m²</th><th>l/m²</th><th>Liter</th></tr>
+          </thead>
+          <tbody id="zufluss-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Gießen -->
+      <div class="card">
+        <div class="card-title">Wasserverbrauch</div>
+        <div class="settings-row">
+          <div><div class="settings-label">Liter / Minute</div><div class="settings-unit">beim Gießen (Gartenschlauch)</div></div>
+          <input type="number" class="settings-input" id="set-lpm" min="1" max="200">
+        </div>
+      </div>
+
+      <!-- Wasserpreise -->
+      <div class="card">
+        <div class="card-title">Wasserpreis nach Jahr</div>
+        <p class="section-note">Preis pro 1.000 Liter. Für jede Preiserhöhung einen neuen Eintrag anlegen.</p>
+        <div id="preise-list"></div>
+        <button class="btn-add-preis" id="btn-add-preis">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Jahr &amp; Preis hinzufügen
+        </button>
+      </div>
+
+      <button class="btn btn-primary" id="btn-save-settings" style="margin-bottom:12px">Einstellungen speichern</button>
+
+      <!-- Import -->
+      <div class="card">
+        <div class="card-title">Historische Daten importieren</div>
+        <p class="section-note">Excel-Datei aus dem Zisterne-Kalkulator importieren (Blatt „Tabelle1").</p>
+        <label class="import-area" for="xls-file">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <span>Excel-Datei auswählen</span>
+          <span style="font-size:12px">.xlsx / .xls</span>
+          <input type="file" id="xls-file" accept=".xlsx,.xls" style="display:none">
+        </label>
+        <div id="import-status"></div>
+      </div>
+
+      <!-- Danger -->
+      <div class="card">
+        <div class="card-title" style="color:var(--danger)">Daten</div>
+        <button class="btn btn-danger" id="btn-delete-all">Alle Daten löschen</button>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- Bottom Nav -->
+  <nav>
+    <button class="nav-btn active" data-page="home">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Übersicht
+    </button>
+    <button class="nav-btn" data-page="entries">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Einträge
+    </button>
+    <button class="nav-btn" data-page="settings">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      Einstellungen
+    </button>
+  </nav>
+</div>
+
+<!-- Entry Modal -->
+<div class="modal-overlay" id="modal-entry">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">Neuer Eintrag</div>
+    <div class="form-group">
+      <label>Datum</label>
+      <input type="date" id="entry-datum">
+    </div>
+    <div class="form-group">
+      <label>Niederschlag (l/m²)</label>
+      <input type="number" id="entry-regen" placeholder="0" min="0" step="0.5">
+      <div class="calc-preview" id="preview-regen"></div>
+    </div>
+    <div class="form-group">
+      <label>Wasserentnahme (Minuten)</label>
+      <input type="number" id="entry-entnahme" placeholder="0" min="0" step="1">
+      <div class="calc-preview" id="preview-entnahme"></div>
+    </div>
+    <button class="btn btn-primary" id="btn-save-entry" style="margin-bottom:10px">Speichern</button>
+    <button class="btn btn-secondary" id="btn-cancel-entry">Abbrechen</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// STORAGE & DEFAULTS
+// ═══════════════════════════════════════════
+const STORE = 'zisterne_v2'
+
+const DEFAULTS = {
+  settings: {
+    kapazitaet:     5000,
+    anfangsbestand: 0,
+    dachTerrasse:   30,
+    dachHaus:       105,
+    literProMinute: 15,
+    preise: [
+      { ab: 2024, preis: 2.92 },
+      { ab: 2025, preis: 3.38 }
+    ]
+  },
+  eintraege: []
+}
+
+function cloneDefaults() { return JSON.parse(JSON.stringify(DEFAULTS)) }
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE)
+    if (!raw) {
+      // Try to migrate from old key
+      const old = localStorage.getItem('zisterne_v1')
+      if (old) {
+        const d = JSON.parse(old)
+        if (!d.settings.preise) {
+          d.settings.preise = [{ ab: new Date().getFullYear(), preis: d.settings.wasserpreis || 3.38 }]
+        }
+        d.settings.dachTerrasse = d.settings.dachTerrasse ?? 30
+        d.settings.dachHaus     = d.settings.dachHaus     ?? 105
+        return d
+      }
+      return cloneDefaults()
+    }
+    const d = JSON.parse(raw)
+    // Ensure new fields exist
+    d.settings.dachTerrasse   = d.settings.dachTerrasse   ?? 30
+    d.settings.dachHaus       = d.settings.dachHaus       ?? 105
+    d.settings.literProMinute = d.settings.literProMinute ?? 15
+    if (!d.settings.preise) {
+      d.settings.preise = [{ ab: new Date().getFullYear(), preis: d.settings.wasserpreis || 3.38 }]
+    }
+    return d
+  } catch { return cloneDefaults() }
+}
+
+function save() { localStorage.setItem(STORE, JSON.stringify(db)) }
+
+let db = load()
+
+// ═══════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════
+function isoWeek(s) {
+  const d = new Date(s + 'T00:00:00')
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7)
+  const w1 = new Date(d.getFullYear(), 0, 4)
+  return 1 + Math.round(((d - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7)
+}
+
+function isoYear(s) {
+  const d = new Date(s + 'T00:00:00')
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7)
+  return d.getFullYear()
+}
+
+function kwToDate(year, kw) {
+  const jan4 = new Date(year, 0, 4)
+  const dow  = (jan4.getDay() + 6) % 7
+  const mon  = new Date(jan4.getTime() - dow * 864e5 + (kw - 1) * 7 * 864e5)
+  return mon.toISOString().split('T')[0]
+}
+
+function today()  { return new Date().toISOString().split('T')[0] }
+function uid()    { return Math.random().toString(36).slice(2) + Date.now().toString(36) }
+
+function fmtDate(s) {
+  if (!s) return '–'
+  const d = new Date(s + 'T00:00:00')
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+function fmtL(n)  { return Math.round(n).toLocaleString('de-DE') + ' L' }
+function fmtEur(n){ return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' }
+function daysDiff(a, b) {
+  return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5)
+}
+
+function dachGesamt() {
+  return (db.settings.dachTerrasse || 0) + (db.settings.dachHaus || 0)
+}
+
+function preisForYear(year) {
+  const sorted = [...db.settings.preise].sort((a, b) => a.ab - b.ab)
+  let p = sorted[0]?.preis ?? 3.38
+  for (const entry of sorted) { if (year >= entry.ab) p = entry.preis }
+  return p
+}
+
+function calcLiterIn(e)  { return e.literIn  || 0 }
+function calcLiterAus(e) { return e.literAus || 0 }
+
+// ═══════════════════════════════════════════
+// COMPUTED
+// ═══════════════════════════════════════════
+function fillLevel() {
+  const sorted = [...db.eintraege].sort((a, b) => a.datum.localeCompare(b.datum))
+  let fill = db.settings.anfangsbestand || 0
+  const cap = db.settings.kapazitaet
+  for (const e of sorted) {
+    fill += calcLiterIn(e) - calcLiterAus(e)
+    fill = Math.max(0, Math.min(fill, cap))
+  }
+  return Math.round(fill)
+}
+
+function stats() {
+  const t         = today()
+  const curYear   = new Date().getFullYear()
+  const curKW     = isoWeek(t)
+  const curKWYear = isoYear(t)
+
+  const yearE = db.eintraege.filter(e => new Date(e.datum + 'T00:00:00').getFullYear() === curYear)
+  const kwE   = db.eintraege.filter(e => isoWeek(e.datum) === curKW && isoYear(e.datum) === curKWYear)
+  const rainE = db.eintraege.filter(e => calcLiterIn(e) > 0).sort((a, b) => b.datum.localeCompare(a.datum))
+
+  const fill = fillLevel()
+  const cap  = db.settings.kapazitaet
+
+  // Geld gespart aktuelles Jahr (nach Jahrespreis)
+  const geldJahr = yearE.reduce((s, e) => s + calcLiterAus(e) / 1000 * preisForYear(curYear), 0)
+
+  // Geld gespart gesamt (alle Jahre, jeweils Jahrespreis)
+  const geldGesamt = db.eintraege.reduce((s, e) => {
+    const y = new Date(e.datum + 'T00:00:00').getFullYear()
+    return s + calcLiterAus(e) / 1000 * preisForYear(y)
+  }, 0)
+
+  return {
+    fill, cap,
+    pct:           cap > 0 ? fill / cap * 100 : 0,
+    curYear, curKW,
+    entnahmeKW:    kwE.reduce((s, e) => s + calcLiterAus(e), 0),
+    regenKW:       kwE.reduce((s, e) => s + calcLiterIn(e), 0),
+    geldJahr, geldGesamt,
+    letzterRegen:  rainE[0]?.datum ?? null,
+    giessMin:      Math.floor(fill / (db.settings.literProMinute || 15))
+  }
+}
+
+// ═══════════════════════════════════════════
+// SVG CISTERN
+// ═══════════════════════════════════════════
+function updateSVG(pct, fill) {
+  const tankTop = 28, tankBot = 296, tankH = 268
+  const p  = Math.max(0, Math.min(100, pct))
+  const wH = tankH * p / 100
+  const wY = tankBot - wH
+
+  const wb = document.getElementById('water-body')
+  const wp = document.getElementById('wave-path')
+  if (wb) { wb.setAttribute('y', wY); wb.setAttribute('height', wH + 5) }
+  if (wp) wp.setAttribute('d',
+    `M-90,${wY} Q10,${wY-10} 100,${wY} Q190,${wY+10} 290,${wY} L290,${tankBot+10} L-90,${tankBot+10} Z`)
+
+  const pt = document.getElementById('pct-text')
+  const lt = document.getElementById('liter-text')
+  if (pt) pt.textContent = Math.round(p) + '%'
+  if (lt) lt.textContent = Math.round(fill).toLocaleString('de-DE') + ' L'
+}
+
+// ═══════════════════════════════════════════
+// RENDER HOME
+// ═══════════════════════════════════════════
+function renderHome() {
+  const s = stats()
+  updateSVG(s.pct, s.fill)
+
+  document.getElementById('header-sub').textContent =
+    `${s.fill.toLocaleString('de-DE')} L von ${s.cap.toLocaleString('de-DE')} L`
+
+  const b = document.getElementById('header-badge')
+  if      (s.pct >= 75) b.innerHTML = '<span class="badge badge-blue">Gut gefüllt</span>'
+  else if (s.pct >= 25) b.innerHTML = '<span class="badge badge-green">Normal</span>'
+  else if (s.pct >  0)  b.innerHTML = '<span class="badge badge-amber">Niedrig</span>'
+  else                  b.innerHTML = '<span class="badge badge-red">Leer</span>'
+
+  document.getElementById('lbl-year1').textContent = s.curYear
+  document.getElementById('lbl-kw').textContent    = s.curKW
+  document.getElementById('lbl-kw-r').textContent  = s.curKW
+
+  document.getElementById('stat-giess').textContent         = s.giessMin.toLocaleString('de-DE') + ' min'
+  document.getElementById('stat-entnahme-kw').textContent   = fmtL(s.entnahmeKW)
+  document.getElementById('stat-regen-kw').textContent      = fmtL(s.regenKW)
+  document.getElementById('stat-geld').textContent          = fmtEur(s.geldJahr)
+  document.getElementById('stat-geld-gesamt').textContent   = fmtEur(s.geldGesamt)
+
+  if (s.letzterRegen) {
+    const d = daysDiff(s.letzterRegen, today())
+    const label = d === 0 ? 'heute' : d === 1 ? 'gestern' : `vor ${d} Tagen`
+    document.getElementById('stat-regen').textContent = `${fmtDate(s.letzterRegen)} (${label})`
+  } else {
+    document.getElementById('stat-regen').textContent = 'kein Eintrag'
+  }
+}
+
+// ═══════════════════════════════════════════
+// RENDER ENTRIES
+// ═══════════════════════════════════════════
+function renderEntries() {
+  const list   = document.getElementById('entries-list')
+  const sorted = [...db.eintraege].sort((a, b) => b.datum.localeCompare(a.datum))
+
+  document.getElementById('entries-count').textContent =
+    sorted.length + ' Eintr' + (sorted.length === 1 ? 'ag' : 'äge')
+
+  if (sorted.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.4">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      </svg>
+      <p>Noch keine Einträge</p>
+      <p style="opacity:0.7">Tippe auf „+ Eintrag" um zu beginnen</p>
+    </div>`
+    return
+  }
+
+  list.innerHTML = sorted.map(e => {
+    const inV  = calcLiterIn(e)
+    const outV = calcLiterAus(e)
+    const kw   = isoWeek(e.datum)
+
+    // Show raw input if available, else liters
+    const inLabel  = e.regenLqm    != null && e.regenLqm    > 0
+      ? `<span class="val-in">+${e.regenLqm} l/m² (${inV.toLocaleString('de-DE')} L)</span>`
+      : inV > 0 ? `<span class="val-in">+${inV.toLocaleString('de-DE')} L</span>` : ''
+
+    const outLabel = e.entnahmeMin != null && e.entnahmeMin > 0
+      ? `<span class="val-out">−${e.entnahmeMin} min (${outV.toLocaleString('de-DE')} L)</span>`
+      : outV > 0 ? `<span class="val-out">−${outV.toLocaleString('de-DE')} L</span>` : ''
+
+    return `<div class="entry-item">
+      <div>
+        <div class="entry-date">${fmtDate(e.datum)}</div>
+        <div class="entry-kw">KW ${kw}</div>
+      </div>
+      <div class="entry-values">
+        ${inLabel}
+        ${outLabel}
+        ${!inLabel && !outLabel ? '<span style="color:var(--muted)">0</span>' : ''}
+      </div>
+      <button class="entry-del" onclick="deleteEntry('${e.id}')" aria-label="Löschen">×</button>
+    </div>`
+  }).join('')
+}
+
+// ═══════════════════════════════════════════
+// RENDER SETTINGS
+// ═══════════════════════════════════════════
+function renderSettings() {
+  const s = db.settings
+  document.getElementById('set-kap').value    = s.kapazitaet
+  document.getElementById('set-anfang').value = s.anfangsbestand
+  document.getElementById('set-dach-t').value = s.dachTerrasse
+  document.getElementById('set-dach-h').value = s.dachHaus
+  document.getElementById('set-lpm').value    = s.literProMinute
+  renderPreise()
+  renderZufluss()
+}
+
+function renderPreise() {
+  const list = document.getElementById('preise-list')
+  const preise = [...db.settings.preise].sort((a, b) => a.ab - b.ab)
+  list.innerHTML = preise.map((p, i) => `
+    <div class="preis-row" data-idx="${i}">
+      <label>Ab Jahr</label>
+      <input type="number" class="inp-year" value="${p.ab}" min="2000" max="2100"
+        onchange="updatePreis(${i},'ab',this.value)">
+      <input type="number" class="inp-preis" value="${p.preis}" min="0" max="99" step="0.01"
+        onchange="updatePreis(${i},'preis',this.value)" style="text-align:right">
+      <label>€/1000 L</label>
+      <button class="preis-del" onclick="deletePreis(${i})">×</button>
+    </div>`).join('')
+}
+
+function updatePreis(idx, field, val) {
+  const sorted = [...db.settings.preise].sort((a, b) => a.ab - b.ab)
+  sorted[idx][field] = parseFloat(val) || (field === 'ab' ? new Date().getFullYear() : 0)
+  db.settings.preise = sorted
+}
+
+function deletePreis(idx) {
+  const sorted = [...db.settings.preise].sort((a, b) => a.ab - b.ab)
+  if (sorted.length <= 1) { toast('Mindestens ein Preis erforderlich'); return }
+  sorted.splice(idx, 1)
+  db.settings.preise = sorted
+  renderPreise()
+}
+
+function addPreis() {
+  const lastYear = Math.max(...db.settings.preise.map(p => p.ab), new Date().getFullYear())
+  db.settings.preise.push({ ab: lastYear + 1, preis: 0 })
+  renderPreise()
+}
+
+function renderZufluss() {
+  const lqm = parseFloat(document.getElementById('preview-lqm').value) || 0
+  const dt  = parseFloat(document.getElementById('set-dach-t').value)  || db.settings.dachTerrasse
+  const dh  = parseFloat(document.getElementById('set-dach-h').value)  || db.settings.dachHaus
+  const body = document.getElementById('zufluss-body')
+  const ltT  = Math.round(dt * lqm)
+  const ltH  = Math.round(dh * lqm)
+  body.innerHTML = `
+    <tr>
+      <td>Dach Terrasse</td><td>${dt}</td><td>${lqm}</td><td>${ltT.toLocaleString('de-DE')} L</td>
+    </tr>
+    <tr>
+      <td>Dach Haus</td><td>${dh}</td><td>${lqm}</td><td>${ltH.toLocaleString('de-DE')} L</td>
+    </tr>
+    <tr class="total">
+      <td>Gesamt</td><td>${dt + dh}</td><td></td><td>${(ltT + ltH).toLocaleString('de-DE')} L</td>
+    </tr>`
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'))
+  document.getElementById('page-' + id).classList.add('active')
+  document.querySelector(`[data-page="${id}"]`).classList.add('active')
+  document.getElementById('main-content').scrollTop = 0
+  if (id === 'home')     renderHome()
+  if (id === 'entries')  renderEntries()
+  if (id === 'settings') renderSettings()
+}
+
+// ═══════════════════════════════════════════
+// ENTRY MODAL
+// ═══════════════════════════════════════════
+let editId = null
+
+function updateEntryPreview() {
+  const lqm = parseFloat(document.getElementById('entry-regen').value) || 0
+  const min = parseFloat(document.getElementById('entry-entnahme').value) || 0
+  const dg  = dachGesamt()
+  const lpm = db.settings.literProMinute || 15
+
+  const litIn  = Math.round(lqm * dg)
+  const litOut = Math.round(min * lpm)
+
+  document.getElementById('preview-regen').textContent =
+    lqm > 0 ? `→ ${litIn.toLocaleString('de-DE')} Liter (${dg} m² × ${lqm} l/m²)` : ''
+  document.getElementById('preview-entnahme').textContent =
+    min > 0 ? `→ ${litOut.toLocaleString('de-DE')} Liter (${min} min × ${lpm} l/min)` : ''
+}
+
+function openModal(id) {
+  editId = id || null
+  document.getElementById('modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuer Eintrag'
+  const dg  = dachGesamt()
+  const lpm = db.settings.literProMinute || 15
+
+  if (id) {
+    const e = db.eintraege.find(x => x.id === id)
+    document.getElementById('entry-datum').value = e.datum
+    // Prefer stored raw values; fall back to reverse-calc
+    document.getElementById('entry-regen').value =
+      e.regenLqm != null ? e.regenLqm : (dg > 0 ? Math.round(e.literIn / dg * 10) / 10 : 0)
+    document.getElementById('entry-entnahme').value =
+      e.entnahmeMin != null ? e.entnahmeMin : Math.round(e.literAus / lpm * 10) / 10
+  } else {
+    document.getElementById('entry-datum').value    = today()
+    document.getElementById('entry-regen').value    = ''
+    document.getElementById('entry-entnahme').value = ''
+  }
+  updateEntryPreview()
+  document.getElementById('modal-entry').classList.add('open')
+}
+
+function closeModal() { document.getElementById('modal-entry').classList.remove('open') }
+
+function saveEntry() {
+  const datum       = document.getElementById('entry-datum').value
+  const regenLqm    = parseFloat(document.getElementById('entry-regen').value)    || 0
+  const entnahmeMin = parseFloat(document.getElementById('entry-entnahme').value) || 0
+  if (!datum) { toast('Bitte Datum eingeben'); return }
+
+  const dg     = dachGesamt()
+  const lpm    = db.settings.literProMinute || 15
+  const literIn  = Math.round(regenLqm * dg)
+  const literAus = Math.round(entnahmeMin * lpm)
+
+  const entry = { id: editId || uid(), datum, regenLqm, literIn, entnahmeMin, literAus }
+
+  if (editId) {
+    const idx = db.eintraege.findIndex(e => e.id === editId)
+    if (idx !== -1) db.eintraege[idx] = entry
+  } else {
+    db.eintraege.push(entry)
+  }
+
+  save(); closeModal(); renderEntries(); renderHome()
+  toast(editId ? 'Eintrag aktualisiert' : 'Eintrag gespeichert')
+}
+
+function deleteEntry(id) {
+  if (!confirm('Diesen Eintrag löschen?')) return
+  db.eintraege = db.eintraege.filter(e => e.id !== id)
+  save(); renderEntries(); renderHome()
+  toast('Eintrag gelöscht')
+}
+
+// ═══════════════════════════════════════════
+// SETTINGS SAVE
+// ═══════════════════════════════════════════
+function saveSettings() {
+  db.settings.kapazitaet      = parseFloat(document.getElementById('set-kap').value)    || 5000
+  db.settings.anfangsbestand  = parseFloat(document.getElementById('set-anfang').value) || 0
+  db.settings.dachTerrasse    = parseFloat(document.getElementById('set-dach-t').value) || 0
+  db.settings.dachHaus        = parseFloat(document.getElementById('set-dach-h').value) || 0
+  db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
+  // preise are updated inline via updatePreis()
+  save(); renderHome(); renderZufluss(); toast('Einstellungen gespeichert')
+}
+
+// ═══════════════════════════════════════════
+// XLSX IMPORT
+// ═══════════════════════════════════════════
+function loadXLSX() {
+  return new Promise((resolve, reject) => {
+    if (typeof XLSX !== 'undefined') return resolve()
+    const s = document.createElement('script')
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    s.onload = resolve
+    s.onerror = () => reject(new Error('XLSX nicht ladbar – Internetverbindung prüfen'))
+    document.head.appendChild(s)
+  })
+}
+
+async function handleImport(file) {
+  const statusEl = document.getElementById('import-status')
+  statusEl.textContent = 'Lade Bibliothek…'
+  try { await loadXLSX() } catch(e) { statusEl.textContent = '✗ ' + e.message; return }
+
+  statusEl.textContent = 'Lese Datei…'
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    try {
+      const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' })
+      const ws   = wb.Sheets['Tabelle1']
+      if (!ws) throw new Error('Blatt „Tabelle1" nicht gefunden')
+
+      const rows       = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
+      const yearRow    = rows[1]  || []
+      const kwRow      = rows[2]  || []
+      const literInRow = rows[3]  || []
+      const literAusRow= rows[4]  || []
+      const startCol   = 12
+      const baseYear   = typeof yearRow[startCol] === 'number' ? yearRow[startCol] : new Date().getFullYear()
+
+      const cols = []
+      for (let c = startCol; c < kwRow.length; c++) {
+        const kw = kwRow[c]
+        if (typeof kw === 'number' && kw >= 1 && kw <= 53) cols.push({ c, kw })
+      }
+
+      let transIdx = cols.length
+      for (let i = 1; i < cols.length; i++) {
+        if (cols[i].kw < cols[i-1].kw) { transIdx = i; break }
+      }
+
+      const newEntries = []
+      cols.forEach(({ c, kw }, i) => {
+        const year    = i < transIdx ? baseYear - 1 : baseYear
+        const literIn  = typeof literInRow[c]   === 'number' ? Math.round(literInRow[c])  : 0
+        const literAus = typeof literAusRow[c]  === 'number' ? Math.round(literAusRow[c]) : 0
+        if (literIn > 0 || literAus > 0) {
+          newEntries.push({ id: uid(), datum: kwToDate(year, kw), literIn, literAus })
+        }
+      })
+
+      if (newEntries.length === 0) { statusEl.textContent = '⚠ Keine Daten gefunden'; return }
+      if (!confirm(`${newEntries.length} Einträge gefunden.\nZu bestehenden Daten hinzufügen?`)) return
+
+      const existing = new Set(db.eintraege.map(e => e.datum))
+      let added = 0
+      for (const e of newEntries) {
+        if (!existing.has(e.datum)) { db.eintraege.push(e); added++ }
+      }
+
+      save(); renderHome()
+      if (document.getElementById('page-entries').classList.contains('active')) renderEntries()
+      statusEl.textContent = `✓ ${added} Einträge importiert` +
+        (added < newEntries.length ? ` (${newEntries.length - added} übersprungen)` : '')
+      toast(`${added} Einträge importiert`)
+    } catch(e) {
+      statusEl.textContent = '✗ ' + e.message; console.error(e)
+    }
+  }
+  reader.readAsArrayBuffer(file)
+}
+
+// ═══════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════
+let toastT = null
+function toast(msg) {
+  const el = document.getElementById('toast')
+  el.textContent = msg; el.classList.add('show')
+  if (toastT) clearTimeout(toastT)
+  toastT = setTimeout(() => el.classList.remove('show'), 2500)
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav-btn').forEach(btn =>
+    btn.addEventListener('click', () => showPage(btn.dataset.page)))
+
+  document.getElementById('btn-add').addEventListener('click', () => openModal())
+  document.getElementById('btn-save-entry').addEventListener('click', saveEntry)
+  document.getElementById('btn-cancel-entry').addEventListener('click', closeModal)
+  document.getElementById('modal-entry').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal()
+  })
+
+  document.getElementById('entry-regen').addEventListener('input', updateEntryPreview)
+  document.getElementById('entry-entnahme').addEventListener('input', updateEntryPreview)
+
+  document.getElementById('btn-save-settings').addEventListener('click', saveSettings)
+  document.getElementById('btn-add-preis').addEventListener('click', addPreis)
+
+  // Live zufluss preview
+  ['preview-lqm','set-dach-t','set-dach-h'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.addEventListener('input', renderZufluss)
+  })
+
+  document.getElementById('btn-delete-all').addEventListener('click', () => {
+    if (!confirm('Wirklich ALLE Daten löschen?\nDies kann nicht rückgängig gemacht werden.')) return
+    db = cloneDefaults(); save(); renderHome(); renderSettings()
+    toast('Alle Daten gelöscht')
+  })
+
+  document.getElementById('xls-file').addEventListener('change', e => {
+    const f = e.target.files[0]
+    if (f) handleImport(f)
+    e.target.value = ''
+  })
+
+  renderHome()
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {})
+  }
+})
+</script>
+</body>
+</html>
