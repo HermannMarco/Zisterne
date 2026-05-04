@@ -1062,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.target.value = ''
   })
 
-  renderHome()
+  requestAnimationFrame(() => requestAnimationFrame(renderHome))
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {})
