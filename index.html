@@ -233,6 +233,50 @@
     .section-note {
       font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;
     }
+
+    /* Toggle Switch */
+    .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+      position: absolute; inset: 0; background: #cbd5e1; border-radius: 28px;
+      cursor: pointer; transition: 0.2s;
+    }
+    .toggle .slider::before {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 22px; height: 22px; background: white; border-radius: 50%;
+      transition: 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider::before { transform: translateX(22px); }
+
+    input:disabled {
+      background: #e5e7eb; color: var(--muted); cursor: not-allowed;
+    }
+    .auto-hint { font-size: 12px; color: var(--accent); margin-top: 4px; min-height: 16px; }
+
+    /* Timer Page */
+    .timer-display {
+      font-size: 64px; font-weight: 700; text-align: center;
+      font-variant-numeric: tabular-nums; color: var(--accent);
+      letter-spacing: -2px; margin: 16px 0 8px;
+    }
+    .timer-status {
+      text-align: center; font-size: 13px; color: var(--muted);
+      margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px;
+    }
+    .timer-liter {
+      text-align: center; font-size: 17px; color: var(--green);
+      font-weight: 600; margin-bottom: 24px;
+    }
+    .timer-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;
+    }
+    .timer-grid .btn { padding: 14px 8px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:disabled:active { opacity: 0.4; }
+
+    .data-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .data-buttons .btn { padding: 12px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -328,6 +372,32 @@
       </div>
     </div>
 
+    <!-- ═══════════════ TIMER ═══════════════ -->
+    <div class="page" id="page-timer">
+      <div class="card">
+        <div class="card-title">Gieß-Timer</div>
+        <div class="timer-status" id="timer-status">Bereit</div>
+        <div class="timer-display" id="timer-display">00:00</div>
+        <div class="timer-liter" id="timer-liter">0 L</div>
+
+        <div class="timer-grid">
+          <button class="btn btn-primary" id="btn-timer-start">▶ Start</button>
+          <button class="btn btn-secondary" id="btn-timer-stop">⏸ Stop</button>
+          <button class="btn btn-secondary" id="btn-timer-resume">⟳ Weiter</button>
+          <button class="btn btn-primary" id="btn-timer-save">💾 Speichern</button>
+        </div>
+        <button class="btn btn-danger" id="btn-timer-reset">↺ Zurücksetzen</button>
+      </div>
+
+      <div class="card">
+        <p class="section-note" style="margin:0">
+          Beim Tippen auf <b>Speichern</b> öffnet sich ein neuer Eintrag mit
+          dem heutigen Datum und der berechneten Wasserentnahme. Der Eintrag
+          muss dort manuell bestätigt werden.
+        </p>
+      </div>
+    </div>
+
     <!-- ═══════════════ EINTRÄGE ═══════════════ -->
     <div class="page" id="page-entries">
       <div class="entries-toolbar">
@@ -372,6 +442,16 @@
           <input type="text" class="settings-input" id="set-plz" maxlength="5" placeholder="12345" inputmode="numeric">
         </div>
         <div id="plz-status" style="font-size:13px;padding:4px 4px 0;min-height:18px"></div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Niederschlag täglich automatisch</div>
+            <div class="settings-unit">erfasst Regen der letzten 14 Tage automatisch</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="set-auto-regen">
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Gießen -->
@@ -396,20 +476,20 @@
 
       <button class="btn btn-primary" id="btn-save-settings" style="margin-bottom:12px">Einstellungen speichern</button>
 
-      <!-- Import -->
+      <!-- Backup -->
       <div class="card">
-        <div class="card-title">Historische Daten importieren</div>
-        <p class="section-note">Excel-Datei aus dem Zisterne-Kalkulator importieren (Blatt „Tabelle1").</p>
-        <label class="import-area" for="xls-file">
-          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          <span>Excel-Datei auswählen</span>
-          <span style="font-size:12px">.xlsx / .xls</span>
-          <input type="file" id="xls-file" accept=".xlsx,.xls" style="display:none">
-        </label>
-        <div id="import-status"></div>
+        <div class="card-title">Daten sichern &amp; wiederherstellen</div>
+        <p class="section-note">
+          Alle App-Daten als Datei sichern (z.&nbsp;B. vor Handywechsel) und auf
+          einem anderen Gerät wieder einlesen. Beim Import werden alle bestehenden
+          Daten überschrieben.
+        </p>
+        <div class="data-buttons">
+          <button class="btn btn-secondary" id="btn-export">⬇ Export</button>
+          <button class="btn btn-secondary" id="btn-import">⬆ Import</button>
+        </div>
+        <input type="file" id="json-file" accept="application/json,.json" style="display:none">
+        <div id="backup-status" style="margin-top:10px;font-size:13px;color:var(--muted);text-align:center;min-height:18px"></div>
       </div>
 
       <!-- Danger -->
@@ -428,6 +508,14 @@
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
       </svg>
       Übersicht
+    </button>
+    <button class="nav-btn" data-page="timer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="13" r="8"/>
+        <path d="M12 9v4l2 2"/>
+        <path d="M9 2h6"/>
+      </svg>
+      Timer
     </button>
     <button class="nav-btn" data-page="entries">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -460,6 +548,7 @@
       <label>Niederschlag (l/m²)</label>
       <input type="number" id="entry-regen" placeholder="0" min="0" step="0.5">
       <div id="weather-status" style="font-size:12px;color:var(--muted);margin-top:4px;min-height:16px"></div>
+      <div class="auto-hint" id="auto-regen-hint"></div>
       <div class="calc-preview" id="preview-regen"></div>
     </div>
     <div class="form-group">
@@ -494,7 +583,8 @@ const DEFAULTS = {
     plz:     '',
     lat:     null,
     lon:     null,
-    plzName: ''
+    plzName: '',
+    autoRegen: false
   },
   eintraege: []
 }
@@ -530,6 +620,7 @@ function load() {
     d.settings.lat     = d.settings.lat     ?? null
     d.settings.lon     = d.settings.lon     ?? null
     d.settings.plzName = d.settings.plzName ?? ''
+    d.settings.autoRegen = d.settings.autoRegen ?? false
     return d
   } catch { return cloneDefaults() }
 }
@@ -754,6 +845,7 @@ function renderSettings() {
   document.getElementById('set-dach-h').value = s.dachHaus
   document.getElementById('set-lpm').value    = s.literProMinute
   document.getElementById('set-plz').value    = s.plz || ''
+  document.getElementById('set-auto-regen').checked = !!s.autoRegen
   const statusEl = document.getElementById('plz-status')
   statusEl.style.color = 'var(--green)'
   statusEl.textContent = s.plzName ? `✓ ${s.plzName}` : ''
@@ -808,12 +900,14 @@ function showPage(id) {
   if (id === 'home')     renderHome()
   if (id === 'entries')  renderEntries()
   if (id === 'settings') renderSettings()
+  if (id === 'timer')    renderTimer()
 }
 
 // ═══════════════════════════════════════════
 // ENTRY MODAL
 // ═══════════════════════════════════════════
 let editId = null
+let pendingTimerSave = false
 
 function updateEntryPreview() {
   const lqm = parseFloat(document.getElementById('entry-regen').value) || 0
@@ -830,8 +924,9 @@ function updateEntryPreview() {
     min > 0 ? `→ ${litOut.toLocaleString('de-DE')} Liter (${min} min × ${lpm} l/min)` : ''
 }
 
-function openModal(id) {
+function openModal(id, prefill) {
   editId = id || null
+  pendingTimerSave = !id && !!(prefill && prefill.entnahmeMin)
   document.getElementById('modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuer Eintrag'
   const dg  = dachGesamt()
   const lpm = db.settings.literProMinute || 15
@@ -847,15 +942,32 @@ function openModal(id) {
   } else {
     document.getElementById('entry-datum').value    = today()
     document.getElementById('entry-regen').value    = ''
-    document.getElementById('entry-entnahme').value = ''
+    document.getElementById('entry-entnahme').value = prefill?.entnahmeMin ?? ''
   }
+
+  // Auto-Regen: Niederschlag-Feld sperren mit Hinweis
+  const regenEl  = document.getElementById('entry-regen')
+  const hintEl   = document.getElementById('auto-regen-hint')
+  const statusEl = document.getElementById('weather-status')
+  statusEl.textContent = ''
+  if (db.settings.autoRegen && !id) {
+    regenEl.disabled    = true
+    regenEl.value       = 0
+    hintEl.textContent  = '🔒 Auto-Modus aktiv – Niederschlag wird täglich automatisch erfasst'
+  } else {
+    regenEl.disabled    = false
+    hintEl.textContent  = ''
+  }
+
   updateEntryPreview()
-  document.getElementById('weather-status').textContent = ''
   document.getElementById('modal-entry').classList.add('open')
-  if (!id) autofillPrecipitation()
+  if (!id && !db.settings.autoRegen) autofillPrecipitation()
 }
 
-function closeModal() { document.getElementById('modal-entry').classList.remove('open') }
+function closeModal() {
+  document.getElementById('modal-entry').classList.remove('open')
+  pendingTimerSave = false
+}
 
 function saveEntry() {
   const datum       = document.getElementById('entry-datum').value
@@ -877,7 +989,14 @@ function saveEntry() {
     db.eintraege.push(entry)
   }
 
+  const wasTimer = pendingTimerSave
   save(); closeModal(); renderEntries(); renderHome()
+
+  if (wasTimer) {
+    // Timer wurde durch Speichern bestätigt → zurücksetzen
+    timer = { running: false, startTs: null, accumulated: 0 }
+    saveTimer(timer); stopTimerTick()
+  }
   toast(editId ? 'Eintrag aktualisiert' : 'Eintrag gespeichert')
 }
 
@@ -897,6 +1016,8 @@ async function saveSettings() {
   db.settings.dachTerrasse    = parseFloat(document.getElementById('set-dach-t').value) || 0
   db.settings.dachHaus        = parseFloat(document.getElementById('set-dach-h').value) || 0
   db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
+  const wasAutoRegen          = db.settings.autoRegen
+  db.settings.autoRegen       = document.getElementById('set-auto-regen').checked
   // preise are updated inline via updatePreis()
 
   const newPLZ   = (document.getElementById('set-plz').value || '').trim()
@@ -923,6 +1044,11 @@ async function saveSettings() {
   }
 
   save(); renderHome(); toast('Einstellungen gespeichert')
+
+  // Auto-Regen wurde gerade aktiviert oder PLZ geändert → direkt synchronisieren
+  if (db.settings.autoRegen && (db.settings.lat && db.settings.lon)) {
+    syncAutoRain()
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -986,80 +1112,245 @@ async function autofillPrecipitation() {
 }
 
 // ═══════════════════════════════════════════
-// XLSX IMPORT
+// AUTO-REGEN SYNC (letzte 14 Tage)
 // ═══════════════════════════════════════════
-function loadXLSX() {
-  return new Promise((resolve, reject) => {
-    if (typeof XLSX !== 'undefined') return resolve()
-    const s = document.createElement('script')
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
-    s.onload = resolve
-    s.onerror = () => reject(new Error('XLSX nicht ladbar – Internetverbindung prüfen'))
-    document.head.appendChild(s)
-  })
+async function syncAutoRain() {
+  if (!db.settings.autoRegen) return
+  if (!db.settings.lat || !db.settings.lon) return
+
+  const ymd = (d) => d.toISOString().split('T')[0]
+  const yesterday = new Date(Date.now() - 864e5)
+  const start     = new Date(Date.now() - 14 * 864e5)
+  const startStr  = ymd(start)
+  const endStr    = ymd(yesterday)
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${db.settings.lat}&longitude=${db.settings.lon}` +
+              `&daily=precipitation_sum&timezone=Europe%2FBerlin&start_date=${startStr}&end_date=${endStr}`
+
+  let data
+  try {
+    const r = await fetch(url)
+    data = await r.json()
+  } catch (e) {
+    console.warn('Auto-Regen Sync fehlgeschlagen:', e); return
+  }
+
+  const dates = data.daily?.time || []
+  const sums  = data.daily?.precipitation_sum || []
+  const dg    = dachGesamt()
+  let changed = false
+
+  for (let i = 0; i < dates.length; i++) {
+    const date = dates[i]
+    const mm   = sums[i]
+    if (mm == null) continue
+    const lqm     = Math.round(mm * 10) / 10
+    const literIn = Math.round(lqm * dg)
+
+    const idx = db.eintraege.findIndex(e => e.datum === date && e.auto === true)
+    if (idx !== -1) {
+      if (db.eintraege[idx].regenLqm !== lqm) {
+        db.eintraege[idx].regenLqm = lqm
+        db.eintraege[idx].literIn  = literIn
+        changed = true
+      }
+    } else if (lqm > 0) {
+      db.eintraege.push({
+        id: uid(), datum: date,
+        regenLqm: lqm, literIn,
+        entnahmeMin: 0, literAus: 0,
+        auto: true
+      })
+      changed = true
+    }
+  }
+
+  if (changed) {
+    save(); renderHome()
+    if (document.getElementById('page-entries').classList.contains('active')) renderEntries()
+  }
 }
 
-async function handleImport(file) {
-  const statusEl = document.getElementById('import-status')
-  statusEl.textContent = 'Lade Bibliothek…'
-  try { await loadXLSX() } catch(e) { statusEl.textContent = '✗ ' + e.message; return }
+// ═══════════════════════════════════════════
+// EXPORT / IMPORT (JSON Backup)
+// ═══════════════════════════════════════════
+function exportData() {
+  const statusEl = document.getElementById('backup-status')
+  try {
+    const payload = {
+      app: 'zisterne',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: db
+    }
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const stamp = new Date().toISOString().split('T')[0]
+    a.href = url
+    a.download = `zisterne-backup-${stamp}.json`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+    statusEl.style.color = 'var(--green)'
+    statusEl.textContent = `✓ ${db.eintraege.length} Einträge exportiert`
+    toast('Backup erstellt')
+  } catch (e) {
+    statusEl.style.color = 'var(--danger)'
+    statusEl.textContent = '✗ Export fehlgeschlagen'
+    console.error(e)
+  }
+}
 
-  statusEl.textContent = 'Lese Datei…'
+function importData(file) {
+  const statusEl = document.getElementById('backup-status')
   const reader = new FileReader()
   reader.onload = (ev) => {
     try {
-      const wb   = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' })
-      const ws   = wb.Sheets['Tabelle1']
-      if (!ws) throw new Error('Blatt „Tabelle1" nicht gefunden')
-
-      const rows       = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null })
-      const yearRow    = rows[1]  || []
-      const kwRow      = rows[2]  || []
-      const literInRow = rows[3]  || []
-      const literAusRow= rows[4]  || []
-      const startCol   = 12
-      const baseYear   = typeof yearRow[startCol] === 'number' ? yearRow[startCol] : new Date().getFullYear()
-
-      const cols = []
-      for (let c = startCol; c < kwRow.length; c++) {
-        const kw = kwRow[c]
-        if (typeof kw === 'number' && kw >= 1 && kw <= 53) cols.push({ c, kw })
+      const parsed = JSON.parse(ev.target.result)
+      const incoming = parsed.data || parsed
+      if (!incoming.settings || !Array.isArray(incoming.eintraege)) {
+        throw new Error('Datei ist kein gültiges Backup')
       }
+      const cnt = incoming.eintraege.length
+      if (!confirm(
+        `Backup gefunden: ${cnt} Einträge.\n\n` +
+        'ALLE bestehenden Daten werden überschrieben.\n' +
+        'Fortfahren?'
+      )) return
 
-      let transIdx = cols.length
-      for (let i = 1; i < cols.length; i++) {
-        if (cols[i].kw < cols[i-1].kw) { transIdx = i; break }
+      // Merge with defaults so neue Felder gesetzt sind
+      const def = cloneDefaults()
+      db = {
+        settings:  { ...def.settings,  ...incoming.settings  },
+        eintraege: incoming.eintraege
       }
-
-      const newEntries = []
-      cols.forEach(({ c, kw }, i) => {
-        const year    = i < transIdx ? baseYear - 1 : baseYear
-        const literIn  = typeof literInRow[c]   === 'number' ? Math.round(literInRow[c])  : 0
-        const literAus = typeof literAusRow[c]  === 'number' ? Math.round(literAusRow[c]) : 0
-        if (literIn > 0 || literAus > 0) {
-          newEntries.push({ id: uid(), datum: kwToDate(year, kw), literIn, literAus })
-        }
-      })
-
-      if (newEntries.length === 0) { statusEl.textContent = '⚠ Keine Daten gefunden'; return }
-      if (!confirm(`${newEntries.length} Einträge gefunden.\nZu bestehenden Daten hinzufügen?`)) return
-
-      const existing = new Set(db.eintraege.map(e => e.datum))
-      let added = 0
-      for (const e of newEntries) {
-        if (!existing.has(e.datum)) { db.eintraege.push(e); added++ }
-      }
-
-      save(); renderHome()
-      if (document.getElementById('page-entries').classList.contains('active')) renderEntries()
-      statusEl.textContent = `✓ ${added} Einträge importiert` +
-        (added < newEntries.length ? ` (${newEntries.length - added} übersprungen)` : '')
-      toast(`${added} Einträge importiert`)
-    } catch(e) {
-      statusEl.textContent = '✗ ' + e.message; console.error(e)
+      save(); renderHome(); renderSettings(); renderEntries()
+      statusEl.style.color = 'var(--green)'
+      statusEl.textContent = `✓ ${cnt} Einträge importiert`
+      toast('Backup wiederhergestellt')
+    } catch (e) {
+      statusEl.style.color = 'var(--danger)'
+      statusEl.textContent = '✗ ' + e.message
+      console.error(e)
     }
   }
-  reader.readAsArrayBuffer(file)
+  reader.readAsText(file)
+}
+
+// ═══════════════════════════════════════════
+// TIMER (Gieß-Timer mit Persistenz)
+// ═══════════════════════════════════════════
+const TIMER_KEY = 'zisterne_timer'
+let timerTick = null
+
+function loadTimer() {
+  try {
+    const raw = localStorage.getItem(TIMER_KEY)
+    if (!raw) return { running: false, startTs: null, accumulated: 0 }
+    const t = JSON.parse(raw)
+    return {
+      running:     !!t.running,
+      startTs:     t.startTs ?? null,
+      accumulated: t.accumulated || 0
+    }
+  } catch { return { running: false, startTs: null, accumulated: 0 } }
+}
+
+function saveTimer(t) { localStorage.setItem(TIMER_KEY, JSON.stringify(t)) }
+
+let timer = loadTimer()
+
+function timerElapsedMs() {
+  return timer.accumulated + (timer.running && timer.startTs ? Date.now() - timer.startTs : 0)
+}
+
+function fmtTimer(ms) {
+  const total = Math.floor(ms / 1000)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+}
+
+function renderTimer() {
+  const ms      = timerElapsedMs()
+  const minutes = ms / 60000
+  const lpm     = db.settings.literProMinute || 15
+  const liter   = Math.round(minutes * lpm)
+
+  const dispEl   = document.getElementById('timer-display')
+  const litEl    = document.getElementById('timer-liter')
+  const statusEl = document.getElementById('timer-status')
+  if (dispEl)   dispEl.textContent = fmtTimer(ms)
+  if (litEl)    litEl.textContent  = liter.toLocaleString('de-DE') + ' L (bei ' + lpm + ' L/min)'
+
+  let state
+  if (timer.running)              state = 'Läuft'
+  else if (timer.accumulated > 0) state = 'Pausiert'
+  else                            state = 'Bereit'
+  if (statusEl) statusEl.textContent = state
+
+  const has  = timer.accumulated > 0 || timer.running
+  document.getElementById('btn-timer-start').disabled  = timer.running || timer.accumulated > 0
+  document.getElementById('btn-timer-stop').disabled   = !timer.running
+  document.getElementById('btn-timer-resume').disabled = timer.running || timer.accumulated === 0
+  document.getElementById('btn-timer-save').disabled   = !has
+  document.getElementById('btn-timer-reset').disabled  = !has
+}
+
+function startTimerTick() {
+  if (timerTick) return
+  timerTick = setInterval(renderTimer, 500)
+}
+function stopTimerTick() {
+  if (timerTick) { clearInterval(timerTick); timerTick = null }
+}
+
+function timerStart() {
+  if (timer.running) return
+  timer = { running: true, startTs: Date.now(), accumulated: 0 }
+  saveTimer(timer); renderTimer(); startTimerTick()
+}
+
+function timerStop() {
+  if (!timer.running) return
+  timer.accumulated = timerElapsedMs()
+  timer.running     = false
+  timer.startTs     = null
+  saveTimer(timer); stopTimerTick(); renderTimer()
+}
+
+function timerResume() {
+  if (timer.running || timer.accumulated === 0) return
+  timer.startTs = Date.now()
+  timer.running = true
+  saveTimer(timer); startTimerTick(); renderTimer()
+}
+
+function timerReset() {
+  if (timer.running || timer.accumulated > 0) {
+    if (!confirm('Timer wirklich zurücksetzen?')) return
+  }
+  timer = { running: false, startTs: null, accumulated: 0 }
+  saveTimer(timer); stopTimerTick(); renderTimer()
+}
+
+function timerSave() {
+  // Pause first if running
+  if (timer.running) {
+    timer.accumulated = timerElapsedMs()
+    timer.running     = false
+    timer.startTs     = null
+    saveTimer(timer); stopTimerTick(); renderTimer()
+  }
+  const minutes = timer.accumulated / 60000
+  if (minutes <= 0) { toast('Timer ist 0'); return }
+
+  // Eintrag-Modal mit vorbefüllter Wasserentnahme öffnen
+  // Auf 1 Nachkommastelle runden (= 6s Auflösung)
+  const min1 = Math.round(minutes * 10) / 10
+  showPage('entries')
+  openModal(null, { entnahmeMin: min1 })
+  // Timer wird erst nach erfolgreichem Speichern zurückgesetzt
 }
 
 // ═══════════════════════════════════════════
@@ -1101,11 +1392,28 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Alle Daten gelöscht')
   })
 
-  document.getElementById('xls-file').addEventListener('change', e => {
+  // Timer
+  document.getElementById('btn-timer-start').addEventListener('click',  timerStart)
+  document.getElementById('btn-timer-stop').addEventListener('click',   timerStop)
+  document.getElementById('btn-timer-resume').addEventListener('click', timerResume)
+  document.getElementById('btn-timer-save').addEventListener('click',   timerSave)
+  document.getElementById('btn-timer-reset').addEventListener('click',  timerReset)
+
+  // Export / Import
+  document.getElementById('btn-export').addEventListener('click', exportData)
+  document.getElementById('btn-import').addEventListener('click',
+    () => document.getElementById('json-file').click())
+  document.getElementById('json-file').addEventListener('change', e => {
     const f = e.target.files[0]
-    if (f) handleImport(f)
+    if (f) importData(f)
     e.target.value = ''
   })
+
+  // Falls Timer beim letzten Mal lief: Tick-Loop wieder aufnehmen
+  if (timer.running) startTimerTick()
+
+  // Auto-Regen Sync beim App-Start (asynchron, blockiert nicht)
+  syncAutoRain()
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {})
