@@ -584,7 +584,8 @@ const DEFAULTS = {
     lat:     null,
     lon:     null,
     plzName: '',
-    autoRegen: false
+    autoRegen: false,
+    autoRegenSince: null
   },
   eintraege: []
 }
@@ -621,6 +622,7 @@ function load() {
     d.settings.lon     = d.settings.lon     ?? null
     d.settings.plzName = d.settings.plzName ?? ''
     d.settings.autoRegen = d.settings.autoRegen ?? false
+    d.settings.autoRegenSince = d.settings.autoRegenSince ?? null
     return d
   } catch { return cloneDefaults() }
 }
@@ -945,7 +947,7 @@ function openModal(id, prefill) {
     document.getElementById('entry-entnahme').value = prefill?.entnahmeMin ?? ''
   }
 
-  // Auto-Regen: Niederschlag-Feld sperren mit Hinweis
+  // Auto-Regen oder Timer-Entnahme: Niederschlag-Feld sperren mit Hinweis
   const regenEl  = document.getElementById('entry-regen')
   const hintEl   = document.getElementById('auto-regen-hint')
   const statusEl = document.getElementById('weather-status')
@@ -954,6 +956,10 @@ function openModal(id, prefill) {
     regenEl.disabled    = true
     regenEl.value       = 0
     hintEl.textContent  = '🔒 Auto-Modus aktiv – Niederschlag wird täglich automatisch erfasst'
+  } else if (pendingTimerSave) {
+    regenEl.disabled    = true
+    regenEl.value       = ''
+    hintEl.textContent  = '🔒 Timer-Entnahme – Niederschlag wird hier nicht erfasst'
   } else {
     regenEl.disabled    = false
     hintEl.textContent  = ''
@@ -961,7 +967,7 @@ function openModal(id, prefill) {
 
   updateEntryPreview()
   document.getElementById('modal-entry').classList.add('open')
-  if (!id && !db.settings.autoRegen) autofillPrecipitation()
+  if (!id && !db.settings.autoRegen && !pendingTimerSave) autofillPrecipitation()
 }
 
 function closeModal() {
@@ -1018,6 +1024,14 @@ async function saveSettings() {
   db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
   const wasAutoRegen          = db.settings.autoRegen
   db.settings.autoRegen       = document.getElementById('set-auto-regen').checked
+
+  // Auto-Regen frisch aktiviert → fragen, ob vergangene Zeiträume nachgetragen werden sollen
+  if (db.settings.autoRegen && !wasAutoRegen) {
+    const fillPast = confirm('Vergangene Zeiträume (letzte 14 Tage) automatisch nachtragen?\n\nOK = Ja, nachtragen\nAbbrechen = Nein, erst ab heute synchronisieren')
+    db.settings.autoRegenSince = fillPast ? null : today()
+  } else if (!db.settings.autoRegen) {
+    db.settings.autoRegenSince = null
+  }
   // preise are updated inline via updatePreis()
 
   const newPLZ   = (document.getElementById('set-plz').value || '').trim()
@@ -1140,10 +1154,12 @@ async function syncAutoRain() {
   const dg    = dachGesamt()
   let changed = false
 
+  const since = db.settings.autoRegenSince
   for (let i = 0; i < dates.length; i++) {
     const date = dates[i]
     const mm   = sums[i]
     if (mm == null) continue
+    if (since && date < since) continue
     const lqm     = Math.round(mm * 10) / 10
     const literIn = Math.round(lqm * dg)
 
