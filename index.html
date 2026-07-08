@@ -254,6 +254,23 @@
     }
     .auto-hint { font-size: 12px; color: var(--accent); margin-top: 4px; min-height: 16px; }
 
+    /* Typ-Segmented-Control (Timer + Modal) */
+    .type-seg { display: flex; gap: 8px; }
+    .type-seg-btn {
+      flex: 1; padding: 11px 8px; border-radius: 10px; border: 1px solid var(--bd);
+      background: var(--bg); color: var(--muted); font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .type-seg-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .type-seg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Settings-Untertitel je Typ */
+    .set-subhead {
+      font-size: 13px; font-weight: 700; color: var(--accent);
+      margin: 14px 0 2px; letter-spacing: 0.2px;
+    }
+    .set-subhead:first-of-type { margin-top: 0; }
+
     /* Timer Page */
     .timer-display {
       font-size: 64px; font-weight: 700; text-align: center;
@@ -345,7 +362,7 @@
         <div class="card-title">Übersicht</div>
         <table class="stats-table">
           <tr>
-            <td>Gießen möglich</td>
+            <td>Gießen möglich<div class="entry-kw" id="giess-names"></div></td>
             <td class="c-blue" id="stat-giess">–</td>
           </tr>
           <tr>
@@ -380,6 +397,11 @@
         <div class="timer-display" id="timer-display">00:00</div>
         <div class="timer-liter" id="timer-liter">0 L</div>
 
+        <div class="type-seg" id="timer-type-seg" style="margin-bottom:18px">
+          <button type="button" class="type-seg-btn active" data-type="A" id="tseg-A">Typ A</button>
+          <button type="button" class="type-seg-btn" data-type="B" id="tseg-B">Typ B</button>
+        </div>
+
         <div class="timer-grid">
           <button class="btn btn-primary" id="btn-timer-start">▶ Start</button>
           <button class="btn btn-secondary" id="btn-timer-stop">⏸ Stop</button>
@@ -391,9 +413,10 @@
 
       <div class="card">
         <p class="section-note" style="margin:0">
-          Beim Tippen auf <b>Speichern</b> öffnet sich ein neuer Eintrag mit
-          dem heutigen Datum und der berechneten Wasserentnahme. Der Eintrag
-          muss dort manuell bestätigt werden.
+          Mit dem Umschalter wählst du den Entnahme-Typ – auch während der Timer
+          läuft. Bei einem Wechsel zählt die Zeit ab dann mit dem neuen L/Minute-Wert
+          weiter. Beim Tippen auf <b>Speichern</b> öffnet sich ein neuer Eintrag mit
+          dem heutigen Datum und der berechneten Wasserentnahme.
         </p>
       </div>
     </div>
@@ -457,9 +480,26 @@
       <!-- Gießen -->
       <div class="card">
         <div class="card-title">Wasserverbrauch</div>
+        <p class="section-note">Zwei Entnahme-Typen mit eigenem Verbrauch (z.&nbsp;B. verschiedene Schläuche oder Geräte). Namen sind frei wählbar.</p>
+
+        <div class="set-subhead">Typ A</div>
         <div class="settings-row">
-          <div><div class="settings-label">Liter / Minute</div><div class="settings-unit">beim Gießen (Gartenschlauch)</div></div>
-          <input type="number" class="settings-input" id="set-lpm" min="1" max="200">
+          <div><div class="settings-label">Name</div></div>
+          <input type="text" class="settings-input" id="set-nameA" maxlength="20" placeholder="Typ A">
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Liter / Minute</div></div>
+          <input type="number" class="settings-input" id="set-lpmA" min="1" max="200">
+        </div>
+
+        <div class="set-subhead">Typ B</div>
+        <div class="settings-row">
+          <div><div class="settings-label">Name</div></div>
+          <input type="text" class="settings-input" id="set-nameB" maxlength="20" placeholder="Typ B">
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">Liter / Minute</div></div>
+          <input type="number" class="settings-input" id="set-lpmB" min="1" max="200">
         </div>
       </div>
 
@@ -551,9 +591,17 @@
       <div class="auto-hint" id="auto-regen-hint"></div>
       <div class="calc-preview" id="preview-regen"></div>
     </div>
+    <div class="form-group" id="entry-type-group">
+      <label>Entnahme-Typ</label>
+      <div class="type-seg">
+        <button type="button" class="type-seg-btn active" data-type="A" id="etype-A">Typ A</button>
+        <button type="button" class="type-seg-btn" data-type="B" id="etype-B">Typ B</button>
+      </div>
+    </div>
     <div class="form-group">
       <label>Wasserentnahme (Minuten)</label>
       <input type="number" id="entry-entnahme" placeholder="0" min="0" step="1">
+      <div class="auto-hint" id="entnahme-hint"></div>
       <div class="calc-preview" id="preview-entnahme"></div>
     </div>
     <button class="btn btn-primary" id="btn-save-entry" style="margin-bottom:10px">Speichern</button>
@@ -575,7 +623,10 @@ const DEFAULTS = {
     anfangsbestand: 0,
     dachTerrasse:   30,
     dachHaus:       105,
-    literProMinute: 15,
+    literProMinuteA: 15,
+    literProMinuteB: 8,
+    typNameA:        'Typ A',
+    typNameB:        'Typ B',
     preise: [
       { ab: 2024, preis: 2.92 },
       { ab: 2025, preis: 3.38 }
@@ -592,6 +643,45 @@ const DEFAULTS = {
 
 function cloneDefaults() { return JSON.parse(JSON.stringify(DEFAULTS)) }
 
+// Sicherstellen, dass alle (auch neue) Settings-Felder existieren.
+// Migriert alten Einzelwert literProMinute → Typ A.
+function migrateSettings(s) {
+  s = s || {}
+  s.dachTerrasse    = s.dachTerrasse    ?? 30
+  s.dachHaus        = s.dachHaus        ?? 105
+  s.literProMinuteA = s.literProMinuteA ?? s.literProMinute ?? 15
+  s.literProMinuteB = s.literProMinuteB ?? 8
+  s.typNameA        = s.typNameA        ?? 'Typ A'
+  s.typNameB        = s.typNameB        ?? 'Typ B'
+  delete s.literProMinute
+  if (!s.preise) {
+    s.preise = [{ ab: new Date().getFullYear(), preis: s.wasserpreis || 3.38 }]
+  }
+  s.plz            = s.plz            ?? ''
+  s.lat            = s.lat            ?? null
+  s.lon            = s.lon            ?? null
+  s.plzName        = s.plzName        ?? ''
+  s.autoRegen      = s.autoRegen      ?? false
+  s.autoRegenSince = s.autoRegenSince ?? null
+  return s
+}
+
+// Alte Einträge (Einzel-Typ) auf entA/entB umstellen. literAus bleibt maßgeblich.
+function migrateEntries(arr) {
+  if (!Array.isArray(arr)) return []
+  arr.forEach(e => {
+    if (e.entA == null && e.entB == null) {
+      e.entA = e.entnahmeMin || 0   // alter Wert = Typ A
+      e.entB = 0
+    }
+    e.entA = e.entA || 0
+    e.entB = e.entB || 0
+    if (e.literAus == null) e.literAus = 0
+    delete e.entnahmeMin
+  })
+  return arr
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORE)
@@ -600,29 +690,15 @@ function load() {
       const old = localStorage.getItem('zisterne_v1')
       if (old) {
         const d = JSON.parse(old)
-        if (!d.settings.preise) {
-          d.settings.preise = [{ ab: new Date().getFullYear(), preis: d.settings.wasserpreis || 3.38 }]
-        }
-        d.settings.dachTerrasse = d.settings.dachTerrasse ?? 30
-        d.settings.dachHaus     = d.settings.dachHaus     ?? 105
+        d.settings  = migrateSettings(d.settings)
+        d.eintraege = migrateEntries(d.eintraege)
         return d
       }
       return cloneDefaults()
     }
     const d = JSON.parse(raw)
-    // Ensure new fields exist
-    d.settings.dachTerrasse   = d.settings.dachTerrasse   ?? 30
-    d.settings.dachHaus       = d.settings.dachHaus       ?? 105
-    d.settings.literProMinute = d.settings.literProMinute ?? 15
-    if (!d.settings.preise) {
-      d.settings.preise = [{ ab: new Date().getFullYear(), preis: d.settings.wasserpreis || 3.38 }]
-    }
-    d.settings.plz     = d.settings.plz     ?? ''
-    d.settings.lat     = d.settings.lat     ?? null
-    d.settings.lon     = d.settings.lon     ?? null
-    d.settings.plzName = d.settings.plzName ?? ''
-    d.settings.autoRegen = d.settings.autoRegen ?? false
-    d.settings.autoRegenSince = d.settings.autoRegenSince ?? null
+    d.settings  = migrateSettings(d.settings)
+    d.eintraege = migrateEntries(d.eintraege)
     return d
   } catch { return cloneDefaults() }
 }
@@ -663,6 +739,7 @@ function fmtDate(s) {
   return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 function fmtL(n)  { return Math.round(n).toLocaleString('de-DE') + ' L' }
+function fmtMin(n){ return (Math.round(n * 10) / 10).toLocaleString('de-DE') }
 function fmtEur(n){ return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' }
 function daysDiff(a, b) {
   return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 864e5)
@@ -671,6 +748,9 @@ function daysDiff(a, b) {
 function dachGesamt() {
   return (db.settings.dachTerrasse || 0) + (db.settings.dachHaus || 0)
 }
+
+function lpmFor(type)  { return (type === 'B' ? db.settings.literProMinuteB : db.settings.literProMinuteA) || (type === 'B' ? 8 : 15) }
+function nameFor(type) { return (type === 'B' ? db.settings.typNameB : db.settings.typNameA) || (type === 'B' ? 'Typ B' : 'Typ A') }
 
 function preisForYear(year) {
   const sorted = [...db.settings.preise].sort((a, b) => a.ab - b.ab)
@@ -726,7 +806,8 @@ function stats() {
     regenKW:       kwE.reduce((s, e) => s + calcLiterIn(e), 0),
     geldJahr, geldGesamt,
     letzterRegen:  rainE[0]?.datum ?? null,
-    giessMin:      Math.floor(fill / (db.settings.literProMinute || 15))
+    giessMinA:     Math.floor(fill / lpmFor('A')),
+    giessMinB:     Math.floor(fill / lpmFor('B'))
   }
 }
 
@@ -771,7 +852,9 @@ function renderHome() {
   document.getElementById('lbl-kw').textContent    = s.curKW
   document.getElementById('lbl-kw-r').textContent  = s.curKW
 
-  document.getElementById('stat-giess').textContent         = s.giessMin.toLocaleString('de-DE') + ' min'
+  document.getElementById('stat-giess').textContent         =
+    s.giessMinA.toLocaleString('de-DE') + ' / ' + s.giessMinB.toLocaleString('de-DE') + ' min'
+  document.getElementById('giess-names').textContent        = `${nameFor('A')} / ${nameFor('B')}`
   document.getElementById('stat-entnahme-kw').textContent   = fmtL(s.entnahmeKW)
   document.getElementById('stat-regen-kw').textContent      = fmtL(s.regenKW)
   document.getElementById('stat-geld').textContent          = fmtEur(s.geldJahr)
@@ -817,9 +900,17 @@ function renderEntries() {
       ? `<span class="val-in">+${e.regenLqm} l/m² (${inV.toLocaleString('de-DE')} L)</span>`
       : inV > 0 ? `<span class="val-in">+${inV.toLocaleString('de-DE')} L</span>` : ''
 
-    const outLabel = e.entnahmeMin != null && e.entnahmeMin > 0
-      ? `<span class="val-out">−${e.entnahmeMin} min (${outV.toLocaleString('de-DE')} L)</span>`
-      : outV > 0 ? `<span class="val-out">−${outV.toLocaleString('de-DE')} L</span>` : ''
+    const eA = e.entA || 0, eB = e.entB || 0
+    let outLabel = ''
+    if (eA > 0 && eB > 0) {
+      outLabel = `<span class="val-out">−${outV.toLocaleString('de-DE')} L (${fmtMin(eA)} ${nameFor('A')} + ${fmtMin(eB)} ${nameFor('B')})</span>`
+    } else if (eA > 0) {
+      outLabel = `<span class="val-out">−${fmtMin(eA)} min ${nameFor('A')} (${outV.toLocaleString('de-DE')} L)</span>`
+    } else if (eB > 0) {
+      outLabel = `<span class="val-out">−${fmtMin(eB)} min ${nameFor('B')} (${outV.toLocaleString('de-DE')} L)</span>`
+    } else if (outV > 0) {
+      outLabel = `<span class="val-out">−${outV.toLocaleString('de-DE')} L</span>`
+    }
 
     return `<div class="entry-item">
       <div>
@@ -845,7 +936,10 @@ function renderSettings() {
   document.getElementById('set-anfang').value = s.anfangsbestand
   document.getElementById('set-dach-t').value = s.dachTerrasse
   document.getElementById('set-dach-h').value = s.dachHaus
-  document.getElementById('set-lpm').value    = s.literProMinute
+  document.getElementById('set-lpmA').value   = s.literProMinuteA
+  document.getElementById('set-lpmB').value   = s.literProMinuteB
+  document.getElementById('set-nameA').value  = s.typNameA
+  document.getElementById('set-nameB').value  = s.typNameB
   document.getElementById('set-plz').value    = s.plz || ''
   document.getElementById('set-auto-regen').checked = !!s.autoRegen
   const statusEl = document.getElementById('plz-status')
@@ -910,45 +1004,94 @@ function showPage(id) {
 // ═══════════════════════════════════════════
 let editId = null
 let pendingTimerSave = false
+let modalType = 'A'    // aktuell gewählter Entnahme-Typ im Modal
+let modalMix  = null   // {entA, entB, literAus} bei gemischter Entnahme → Minutenfeld gesperrt
+
+function setModalType(type) {
+  modalType = type
+  document.getElementById('etype-A').classList.toggle('active', type === 'A')
+  document.getElementById('etype-B').classList.toggle('active', type === 'B')
+  updateEntryPreview()
+}
 
 function updateEntryPreview() {
   const lqm = parseFloat(document.getElementById('entry-regen').value) || 0
-  const min = parseFloat(document.getElementById('entry-entnahme').value) || 0
   const dg  = dachGesamt()
-  const lpm = db.settings.literProMinute || 15
-
-  const litIn  = Math.round(lqm * dg)
-  const litOut = Math.round(min * lpm)
-
+  const litIn = Math.round(lqm * dg)
   document.getElementById('preview-regen').textContent =
     lqm > 0 ? `→ ${litIn.toLocaleString('de-DE')} Liter (${dg} m² × ${lqm} l/m²)` : ''
-  document.getElementById('preview-entnahme').textContent =
-    min > 0 ? `→ ${litOut.toLocaleString('de-DE')} Liter (${min} min × ${lpm} l/min)` : ''
+
+  const prevEl = document.getElementById('preview-entnahme')
+  if (modalMix) {
+    prevEl.textContent =
+      `→ ${modalMix.literAus.toLocaleString('de-DE')} Liter ` +
+      `(${fmtMin(modalMix.entA)} min ${nameFor('A')} + ${fmtMin(modalMix.entB)} min ${nameFor('B')})`
+    return
+  }
+  const min    = parseFloat(document.getElementById('entry-entnahme').value) || 0
+  const lpm    = lpmFor(modalType)
+  const litOut = Math.round(min * lpm)
+  prevEl.textContent =
+    min > 0 ? `→ ${litOut.toLocaleString('de-DE')} Liter (${fmtMin(min)} min × ${lpm} l/min, ${nameFor(modalType)})` : ''
 }
 
 function openModal(id, prefill) {
-  editId = id || null
-  pendingTimerSave = !id && !!(prefill && prefill.entnahmeMin)
+  editId   = id || null
+  modalMix = null
+  const isTimer = !!(prefill && (prefill.entnahmeMin != null || prefill.mix))
+  pendingTimerSave = !id && isTimer
   document.getElementById('modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuer Eintrag'
-  const dg  = dachGesamt()
-  const lpm = db.settings.literProMinute || 15
+  const dg = dachGesamt()
+
+  // Typ-Umschalter mit aktuellen Namen beschriften
+  document.getElementById('etype-A').textContent = nameFor('A')
+  document.getElementById('etype-B').textContent = nameFor('B')
+
+  const regenEl   = document.getElementById('entry-regen')
+  const entnEl    = document.getElementById('entry-entnahme')
+  const typeGroup = document.getElementById('entry-type-group')
+  const entnHint  = document.getElementById('entnahme-hint')
+  entnEl.disabled = false
+  entnHint.textContent = ''
+  typeGroup.style.display = ''
 
   if (id) {
     const e = db.eintraege.find(x => x.id === id)
     document.getElementById('entry-datum').value = e.datum
-    // Prefer stored raw values; fall back to reverse-calc
-    document.getElementById('entry-regen').value =
-      e.regenLqm != null ? e.regenLqm : (dg > 0 ? Math.round(e.literIn / dg * 10) / 10 : 0)
-    document.getElementById('entry-entnahme').value =
-      e.entnahmeMin != null ? e.entnahmeMin : Math.round(e.literAus / lpm * 10) / 10
+    regenEl.value = e.regenLqm != null ? e.regenLqm : (dg > 0 ? Math.round(e.literIn / dg * 10) / 10 : 0)
+    const eA = e.entA || 0, eB = e.entB || 0
+    if (eA > 0 && eB > 0) {
+      // Gemischter Eintrag → gesperrt anzeigen
+      modalMix = { entA: eA, entB: eB, literAus: e.literAus || 0 }
+      typeGroup.style.display = 'none'
+      entnEl.value = Math.round((eA + eB) * 10) / 10
+      entnEl.disabled = true
+      entnHint.textContent = '🔒 Gemischte Entnahme – zum Ändern löschen und neu anlegen'
+    } else {
+      const t = eB > 0 ? 'B' : 'A'
+      entnEl.value = (t === 'A' ? eA : eB) || ''
+      setModalType(t)
+    }
   } else {
-    document.getElementById('entry-datum').value    = today()
-    document.getElementById('entry-regen').value    = ''
-    document.getElementById('entry-entnahme').value = prefill?.entnahmeMin ?? ''
+    document.getElementById('entry-datum').value = today()
+    regenEl.value = ''
+    if (prefill && prefill.mix) {
+      modalMix = prefill.mix
+      typeGroup.style.display = 'none'
+      entnEl.value = Math.round((prefill.mix.entA + prefill.mix.entB) * 10) / 10
+      entnEl.disabled = true
+      entnHint.textContent =
+        `🔒 Timer: ${fmtMin(prefill.mix.entA)} min ${nameFor('A')} + ${fmtMin(prefill.mix.entB)} min ${nameFor('B')}`
+    } else if (prefill && prefill.entnahmeMin != null) {
+      entnEl.value = prefill.entnahmeMin
+      setModalType(prefill.type || 'A')
+    } else {
+      entnEl.value = ''
+      setModalType('A')
+    }
   }
 
   // Auto-Regen oder Timer-Entnahme: Niederschlag-Feld sperren mit Hinweis
-  const regenEl  = document.getElementById('entry-regen')
   const hintEl   = document.getElementById('auto-regen-hint')
   const statusEl = document.getElementById('weather-status')
   statusEl.textContent = ''
@@ -973,20 +1116,30 @@ function openModal(id, prefill) {
 function closeModal() {
   document.getElementById('modal-entry').classList.remove('open')
   pendingTimerSave = false
+  modalMix = null
 }
 
 function saveEntry() {
-  const datum       = document.getElementById('entry-datum').value
-  const regenLqm    = parseFloat(document.getElementById('entry-regen').value)    || 0
-  const entnahmeMin = parseFloat(document.getElementById('entry-entnahme').value) || 0
+  const datum    = document.getElementById('entry-datum').value
+  const regenLqm = parseFloat(document.getElementById('entry-regen').value) || 0
   if (!datum) { toast('Bitte Datum eingeben'); return }
 
-  const dg     = dachGesamt()
-  const lpm    = db.settings.literProMinute || 15
-  const literIn  = Math.round(regenLqm * dg)
-  const literAus = Math.round(entnahmeMin * lpm)
+  const dg      = dachGesamt()
+  const literIn = Math.round(regenLqm * dg)
 
-  const entry = { id: editId || uid(), datum, regenLqm, literIn, entnahmeMin, literAus }
+  let entA, entB, literAus
+  if (modalMix) {
+    entA = modalMix.entA; entB = modalMix.entB; literAus = modalMix.literAus
+  } else {
+    const min = parseFloat(document.getElementById('entry-entnahme').value) || 0
+    entA = modalType === 'A' ? min : 0
+    entB = modalType === 'B' ? min : 0
+    literAus = Math.round(entA * lpmFor('A') + entB * lpmFor('B'))
+  }
+
+  const existing = editId ? db.eintraege.find(e => e.id === editId) : null
+  const entry = { id: editId || uid(), datum, regenLqm, literIn, entA, entB, literAus }
+  if (existing && existing.auto) entry.auto = true
 
   if (editId) {
     const idx = db.eintraege.findIndex(e => e.id === editId)
@@ -999,8 +1152,8 @@ function saveEntry() {
   save(); closeModal(); renderEntries(); renderHome()
 
   if (wasTimer) {
-    // Timer wurde durch Speichern bestätigt → zurücksetzen
-    timer = { running: false, startTs: null, accumulated: 0 }
+    // Timer wurde durch Speichern bestätigt → zurücksetzen (Typ-Auswahl behalten)
+    timer = { running: false, startTs: null, type: timer.type || 'A', msA: 0, msB: 0 }
     saveTimer(timer); stopTimerTick()
   }
   toast(editId ? 'Eintrag aktualisiert' : 'Eintrag gespeichert')
@@ -1021,7 +1174,10 @@ async function saveSettings() {
   db.settings.anfangsbestand  = parseFloat(document.getElementById('set-anfang').value) || 0
   db.settings.dachTerrasse    = parseFloat(document.getElementById('set-dach-t').value) || 0
   db.settings.dachHaus        = parseFloat(document.getElementById('set-dach-h').value) || 0
-  db.settings.literProMinute  = parseFloat(document.getElementById('set-lpm').value)    || 15
+  db.settings.literProMinuteA = parseFloat(document.getElementById('set-lpmA').value)   || 15
+  db.settings.literProMinuteB = parseFloat(document.getElementById('set-lpmB').value)   || 8
+  db.settings.typNameA        = (document.getElementById('set-nameA').value || '').trim() || 'Typ A'
+  db.settings.typNameB        = (document.getElementById('set-nameB').value || '').trim() || 'Typ B'
   const wasAutoRegen          = db.settings.autoRegen
   db.settings.autoRegen       = document.getElementById('set-auto-regen').checked
 
@@ -1174,7 +1330,7 @@ async function syncAutoRain() {
       db.eintraege.push({
         id: uid(), datum: date,
         regenLqm: lqm, literIn,
-        entnahmeMin: 0, literAus: 0,
+        entA: 0, entB: 0, literAus: 0,
         auto: true
       })
       changed = true
@@ -1234,11 +1390,11 @@ function importData(file) {
         'Fortfahren?'
       )) return
 
-      // Merge with defaults so neue Felder gesetzt sind
+      // Merge with defaults so neue Felder gesetzt sind + migrieren
       const def = cloneDefaults()
       db = {
-        settings:  { ...def.settings,  ...incoming.settings  },
-        eintraege: incoming.eintraege
+        settings:  migrateSettings({ ...def.settings, ...incoming.settings }),
+        eintraege: migrateEntries(incoming.eintraege)
       }
       save(); renderHome(); renderSettings(); renderEntries()
       statusEl.style.color = 'var(--green)'
@@ -1260,25 +1416,33 @@ const TIMER_KEY = 'zisterne_timer'
 let timerTick = null
 
 function loadTimer() {
+  const base = { running: false, startTs: null, type: 'A', msA: 0, msB: 0 }
   try {
     const raw = localStorage.getItem(TIMER_KEY)
-    if (!raw) return { running: false, startTs: null, accumulated: 0 }
+    if (!raw) return base
     const t = JSON.parse(raw)
     return {
-      running:     !!t.running,
-      startTs:     t.startTs ?? null,
-      accumulated: t.accumulated || 0
+      running: !!t.running,
+      startTs: t.startTs ?? null,
+      type:    t.type === 'B' ? 'B' : 'A',
+      msA:     t.msA != null ? t.msA : (t.accumulated || 0),  // alte Struktur → Typ A
+      msB:     t.msB || 0
     }
-  } catch { return { running: false, startTs: null, accumulated: 0 } }
+  } catch { return base }
 }
 
 function saveTimer(t) { localStorage.setItem(TIMER_KEY, JSON.stringify(t)) }
 
 let timer = loadTimer()
 
-function timerElapsedMs() {
-  return timer.accumulated + (timer.running && timer.startTs ? Date.now() - timer.startTs : 0)
+function msKey(type)   { return type === 'B' ? 'msB' : 'msA' }
+function segMs(type)   { return (timer.running && timer.startTs && timer.type === type) ? Date.now() - timer.startTs : 0 }
+function elapsedMsFor(type) { return (type === 'B' ? timer.msB : timer.msA) + segMs(type) }
+function timerTotalMs()     { return elapsedMsFor('A') + elapsedMsFor('B') }
+function timerLiters() {
+  return Math.round(elapsedMsFor('A') / 60000 * lpmFor('A') + elapsedMsFor('B') / 60000 * lpmFor('B'))
 }
+function timerHasData() { return timer.running || timer.msA > 0 || timer.msB > 0 }
 
 function fmtTimer(ms) {
   const total = Math.floor(ms / 1000)
@@ -1288,27 +1452,44 @@ function fmtTimer(ms) {
 }
 
 function renderTimer() {
-  const ms      = timerElapsedMs()
-  const minutes = ms / 60000
-  const lpm     = db.settings.literProMinute || 15
-  const liter   = Math.round(minutes * lpm)
-
   const dispEl   = document.getElementById('timer-display')
   const litEl    = document.getElementById('timer-liter')
   const statusEl = document.getElementById('timer-status')
-  if (dispEl)   dispEl.textContent = fmtTimer(ms)
-  if (litEl)    litEl.textContent  = liter.toLocaleString('de-DE') + ' L (bei ' + lpm + ' L/min)'
+
+  if (dispEl) dispEl.textContent = fmtTimer(timerTotalMs())
+
+  const mA = elapsedMsFor('A') / 60000
+  const mB = elapsedMsFor('B') / 60000
+  if (litEl) {
+    if (mA > 0 && mB > 0) {
+      litEl.textContent =
+        `${timerLiters().toLocaleString('de-DE')} L — ${fmtMin(mA)} min ${nameFor('A')} + ${fmtMin(mB)} min ${nameFor('B')}`
+    } else {
+      litEl.textContent =
+        `${timerLiters().toLocaleString('de-DE')} L (bei ${lpmFor(timer.type)} L/min, ${nameFor(timer.type)})`
+    }
+  }
 
   let state
-  if (timer.running)              state = 'Läuft'
-  else if (timer.accumulated > 0) state = 'Pausiert'
-  else                            state = 'Bereit'
+  if (timer.running)                        state = 'Läuft'
+  else if (timer.msA > 0 || timer.msB > 0)  state = 'Pausiert'
+  else                                      state = 'Bereit'
   if (statusEl) statusEl.textContent = state
 
-  const has  = timer.accumulated > 0 || timer.running
-  document.getElementById('btn-timer-start').disabled  = timer.running || timer.accumulated > 0
+  // Typ-Umschalter
+  const segA = document.getElementById('tseg-A')
+  const segB = document.getElementById('tseg-B')
+  if (segA && segB) {
+    segA.textContent = nameFor('A')
+    segB.textContent = nameFor('B')
+    segA.classList.toggle('active', timer.type === 'A')
+    segB.classList.toggle('active', timer.type === 'B')
+  }
+
+  const has = timerHasData()
+  document.getElementById('btn-timer-start').disabled  = timer.running || timer.msA > 0 || timer.msB > 0
   document.getElementById('btn-timer-stop').disabled   = !timer.running
-  document.getElementById('btn-timer-resume').disabled = timer.running || timer.accumulated === 0
+  document.getElementById('btn-timer-resume').disabled = timer.running || (timer.msA === 0 && timer.msB === 0)
   document.getElementById('btn-timer-save').disabled   = !has
   document.getElementById('btn-timer-reset').disabled  = !has
 }
@@ -1323,49 +1504,67 @@ function stopTimerTick() {
 
 function timerStart() {
   if (timer.running) return
-  timer = { running: true, startTs: Date.now(), accumulated: 0 }
+  timer = { running: true, startTs: Date.now(), type: timer.type || 'A', msA: 0, msB: 0 }
   saveTimer(timer); renderTimer(); startTimerTick()
 }
 
 function timerStop() {
   if (!timer.running) return
-  timer.accumulated = timerElapsedMs()
-  timer.running     = false
-  timer.startTs     = null
+  timer[msKey(timer.type)] += Date.now() - timer.startTs
+  timer.running = false
+  timer.startTs = null
   saveTimer(timer); stopTimerTick(); renderTimer()
 }
 
 function timerResume() {
-  if (timer.running || timer.accumulated === 0) return
+  if (timer.running || (timer.msA === 0 && timer.msB === 0)) return
   timer.startTs = Date.now()
   timer.running = true
   saveTimer(timer); startTimerTick(); renderTimer()
 }
 
 function timerReset() {
-  if (timer.running || timer.accumulated > 0) {
+  if (timerHasData()) {
     if (!confirm('Timer wirklich zurücksetzen?')) return
   }
-  timer = { running: false, startTs: null, accumulated: 0 }
+  timer = { running: false, startTs: null, type: timer.type || 'A', msA: 0, msB: 0 }
   saveTimer(timer); stopTimerTick(); renderTimer()
+}
+
+// Typ umschalten – auch während der Timer läuft.
+// Läuft er: bisheriges Segment gutschreiben, neues Segment im neuen Typ starten.
+// Pausiert: nur Typ merken → beim „Weiter" zählt die neue L/Minute-Zeit.
+function timerSetType(type) {
+  if (type === timer.type) return
+  if (timer.running && timer.startTs) {
+    timer[msKey(timer.type)] += Date.now() - timer.startTs
+    timer.startTs = Date.now()
+  }
+  timer.type = type
+  saveTimer(timer); renderTimer()
 }
 
 function timerSave() {
   // Pause first if running
   if (timer.running) {
-    timer.accumulated = timerElapsedMs()
-    timer.running     = false
-    timer.startTs     = null
+    timer[msKey(timer.type)] += Date.now() - timer.startTs
+    timer.running = false
+    timer.startTs = null
     saveTimer(timer); stopTimerTick(); renderTimer()
   }
-  const minutes = timer.accumulated / 60000
-  if (minutes <= 0) { toast('Timer ist 0'); return }
-
-  // Eintrag-Modal mit vorbefüllter Wasserentnahme öffnen
   // Auf 1 Nachkommastelle runden (= 6s Auflösung)
-  const min1 = Math.round(minutes * 10) / 10
+  const minA = Math.round(timer.msA / 60000 * 10) / 10
+  const minB = Math.round(timer.msB / 60000 * 10) / 10
+  if (minA <= 0 && minB <= 0) { toast('Timer ist 0'); return }
+
   showPage('entries')
-  openModal(null, { entnahmeMin: min1 })
+  if (minA > 0 && minB > 0) {
+    const literAus = Math.round(minA * lpmFor('A') + minB * lpmFor('B'))
+    openModal(null, { mix: { entA: minA, entB: minB, literAus } })
+  } else {
+    const type = minB > 0 ? 'B' : 'A'
+    openModal(null, { entnahmeMin: (type === 'A' ? minA : minB), type })
+  }
   // Timer wird erst nach erfolgreichem Speichern zurückgesetzt
 }
 
@@ -1398,6 +1597,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('entry-datum').addEventListener('change', autofillPrecipitation)
   document.getElementById('entry-entnahme').addEventListener('input', updateEntryPreview)
 
+  // Typ-Umschalter im Eintrag-Modal
+  document.getElementById('etype-A').addEventListener('click', () => { if (!modalMix) setModalType('A') })
+  document.getElementById('etype-B').addEventListener('click', () => { if (!modalMix) setModalType('B') })
+
   document.getElementById('btn-save-settings').addEventListener('click', saveSettings)
   document.getElementById('btn-add-preis').addEventListener('click', addPreis)
 
@@ -1414,6 +1617,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-timer-resume').addEventListener('click', timerResume)
   document.getElementById('btn-timer-save').addEventListener('click',   timerSave)
   document.getElementById('btn-timer-reset').addEventListener('click',  timerReset)
+
+  // Typ-Umschalter auf der Timer-Seite
+  document.getElementById('tseg-A').addEventListener('click', () => timerSetType('A'))
+  document.getElementById('tseg-B').addEventListener('click', () => timerSetType('B'))
 
   // Export / Import
   document.getElementById('btn-export').addEventListener('click', exportData)
